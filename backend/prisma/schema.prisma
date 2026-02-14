@@ -1,0 +1,322 @@
+// Prisma Schema for MOVZZ
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  phone         String    @unique
+  email         String?   @unique
+  name          String?
+  profileImage  String?
+  
+  // Authentication
+  passwordHash  String?
+  isVerified    Boolean   @default(false)
+  
+  // Preferences
+  preferredLanguage String @default("en")
+  preferredPayment  String @default("cash")
+  
+  // Metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  bookings      Booking[]
+  savedLocations SavedLocation[]
+  paymentMethods PaymentMethod[]
+  otpCodes      OTPCode[]
+  
+  @@index([phone])
+  @@index([email])
+}
+
+model OTPCode {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  code        String
+  phone       String
+  expiresAt   DateTime
+  verified    Boolean   @default(false)
+  attempts    Int       @default(0)
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([phone, code])
+  @@index([expiresAt])
+}
+
+model SavedLocation {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  label       String   // "Home", "Work", "Gym"
+  address     String
+  latitude    Float
+  longitude   Float
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// ============================================
+// BOOKING SYSTEM
+// ============================================
+
+model Booking {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  // Journey Details
+  pickupAddress   String
+  pickupLat       Float
+  pickupLng       Float
+  dropAddress     String
+  dropLat         Float
+  dropLng         Float
+  distance        Float    // in kilometers
+  
+  // Provider Details
+  provider        String   // "uber", "ola", "rapido", "metro"
+  vehicleType     String   // "cab", "bike", "auto", "metro"
+  rideType        String?  // "UberGo", "Ola Mini", etc.
+  
+  // Pricing
+  estimatedPrice  Float
+  finalPrice      Float?
+  currency        String   @default("INR")
+  
+  // Status
+  status          BookingStatus @default(PENDING)
+  
+  // Provider Response
+  providerBookingId String?
+  providerResponse  Json?
+  
+  // Driver Details (when assigned)
+  driverName      String?
+  driverPhone     String?
+  driverRating    Float?
+  vehicleNumber   String?
+  vehicleModel    String?
+  
+  // Timing
+  estimatedETA    Int?     // in minutes
+  pickupTime      DateTime?
+  dropTime        DateTime?
+  
+  // Payment
+  paymentMethod   String   @default("cash")
+  paymentStatus   PaymentStatus @default(PENDING)
+  transactionId   String?
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  cancelledAt     DateTime?
+  cancellationReason String?
+  
+  // Relations
+  legs            BookingLeg[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([provider])
+}
+
+enum BookingStatus {
+  PENDING
+  SEARCHING
+  CONFIRMED
+  DRIVER_ASSIGNED
+  DRIVER_ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// For multi-modal journeys (e.g., Metro + Cab)
+model BookingLeg {
+  id              String   @id @default(uuid())
+  bookingId       String
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  sequence        Int      // 1, 2, 3 for multi-leg journeys
+  provider        String
+  vehicleType     String
+  
+  startAddress    String
+  startLat        Float
+  startLng        Float
+  endAddress      String
+  endLat          Float
+  endLng          Float
+  
+  distance        Float
+  estimatedPrice  Float
+  estimatedTime   Int      // in minutes
+  
+  status          String   @default("pending")
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([bookingId])
+}
+
+// ============================================
+// PROVIDER INTEGRATION
+// ============================================
+
+model ProviderCache {
+  id              String   @id @default(uuid())
+  
+  // Cache Key
+  provider        String
+  routeHash       String   // Hash of pickup + drop coordinates
+  vehicleType     String
+  
+  // Cached Data
+  estimatedPrice  Float
+  estimatedETA    Int
+  availability    Boolean
+  surgeMultiplier Float?
+  
+  // Response
+  rawResponse     Json
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  
+  @@unique([provider, routeHash, vehicleType])
+  @@index([expiresAt])
+}
+
+model ProviderLog {
+  id              String   @id @default(uuid())
+  
+  provider        String
+  endpoint        String
+  method          String
+  
+  requestBody     Json?
+  responseBody    Json?
+  statusCode      Int?
+  
+  success         Boolean
+  errorMessage    String?
+  
+  latency         Int?     // in milliseconds
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([provider])
+  @@index([createdAt])
+  @@index([success])
+}
+
+// ============================================
+// PAYMENT SYSTEM
+// ============================================
+
+model PaymentMethod {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            String   // "card", "upi", "wallet"
+  provider        String?  // "razorpay", "paytm", "gpay"
+  
+  // Card Details (encrypted)
+  last4           String?
+  cardBrand       String?
+  expiryMonth     Int?
+  expiryYear      Int?
+  
+  // UPI
+  upiId           String?
+  
+  // Wallet
+  walletId        String?
+  
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// ============================================
+// ANALYTICS & MONITORING
+// ============================================
+
+model RouteAnalytics {
+  id              String   @id @default(uuid())
+  
+  // Route
+  pickupArea      String
+  dropArea        String
+  distance        Float
+  
+  // Provider Performance
+  provider        String
+  vehicleType     String
+  avgPrice        Float
+  avgETA          Int
+  successRate     Float
+  
+  // Aggregation
+  totalBookings   Int
+  date            DateTime @db.Date
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([pickupArea, dropArea, provider, vehicleType, date])
+  @@index([date])
+}
+
+model SystemMetrics {
+  id              String   @id @default(uuid())
+  
+  metricName      String
+  metricValue     Float
+  metricUnit      String?
+  
+  tags            Json?    // { "provider": "uber", "region": "chennai" }
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([metricName])
+  @@index([timestamp])
+}
