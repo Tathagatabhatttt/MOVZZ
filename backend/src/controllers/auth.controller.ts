@@ -1,117 +1,85 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import redis from '../config/redis';
-import smsService from '../services/sms.service';
 import { generateToken } from '../services/jwt.service';
 import { generateOTP, generateReferralCode } from '../utils/otp';
-import { isValidIndianPhone, normalizePhone } from '../utils/phone';
-import { sendOTPSchema, verifyOTPSchema } from '../validators/auth.validator';
+import { normalizePhone } from '../utils/phone';
+
+/**
+ * ╔════════════════════════════════════════════════════════════════╗
+ * ║  MOVZZ NATIVE AUTHENTICATION (High Reliability)                ║
+ * ╚════════════════════════════════════════════════════════════════╝
+ */
 
 export async function sendOTP(req: Request, res: Response): Promise<void> {
   try {
-    const result = sendOTPSchema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid phone number format'
-      });
+    const { phone: input } = req.body;
+
+    if (!input || typeof input !== 'string') {
+      res.status(400).json({ success: false, error: 'Phone or Email is required' });
       return;
     }
 
-    const { phone: rawPhone } = result.data;
-    const phone = normalizePhone(rawPhone);
-
-    if (!isValidIndianPhone(phone)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid Indian phone number'
-      });
-      return;
-    }
-
+    const isEmail = input.includes('@');
     const otp = generateOTP();
-    await smsService.sendOTP(phone, otp);
+    const key = isEmail ? input.toLowerCase().trim() : normalizePhone(input);
+
+    await redis.set(`otp:${key}`, otp, 300);
+
+    console.log(`[MOVZZ AUTH] 🔑 OTP for ${key}: ${otp} (MOCK)`);
 
     res.json({
       success: true,
-      message: `OTP sent to ${phone}`,
-      expiresIn: 300,
-      // Include OTP in dev mode for easy testing
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
+      channel: isEmail ? 'email' : 'whatsapp',
+      message: `OTP sent to ${isEmail ? 'email' : 'WhatsApp'} (Simulated)`,
+      otp: process.env.NODE_ENV !== 'production' ? otp : undefined
     });
-
-  } catch (error) {
-    console.error('Send OTP error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send OTP'
-    });
+  } catch (error: any) {
+    console.error('[MOVZZ AUTH] Fatal Error:', error.message);
+    res.status(500).json({ success: false, error: 'Internal Auth Error' });
   }
 }
 
 export async function verifyOTP(req: Request, res: Response): Promise<void> {
   try {
-    const result = verifyOTPSchema.safeParse(req.body);
-    if (!result.success) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid OTP format'
-      });
+    const { phone: input, otp } = req.body;
+
+    if (!input || !otp) {
+      res.status(400).json({ success: false, error: 'All fields are required' });
       return;
     }
 
-    const { phone: rawPhone, otp } = result.data;
-    const phone = normalizePhone(rawPhone);
+    const key = input.includes('@') ? input.toLowerCase().trim() : normalizePhone(input);
 
-    const storedOTP = await redis.get(`otp:${phone}`);
-
-    if (!storedOTP || storedOTP !== otp) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid or expired OTP'
-      });
+    const storedOtp = await redis.get(`otp:${key}`);
+    if (!storedOtp || storedOtp !== otp) {
+      res.status(401).json({ success: false, error: 'Invalid code' });
       return;
     }
 
-    await redis.del(`otp:${phone}`);
+    await redis.del(`otp:${key}`);
 
-    let user = await prisma.user.findUnique({ where: { phone } });
+    // Persist user with either email or phone
+    const isEmail = input.includes('@');
+    let user = await prisma.user.findFirst({
+      where: isEmail ? { name: input } : { phone: key }
+    });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          phone,
+          phone: isEmail ? `email_${Date.now()}` : key,
+          name: isEmail ? input : null,
           referralCode: generateReferralCode()
         }
       });
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    });
+    const token = generateToken({ userId: user.id, phone: user.phone });
+    res.json({ success: true, token, user });
 
-    const token = generateToken({
-      userId: user.id,
-      phone: user.phone
-    });
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        name: user.name,
-        referralCode: user.referralCode
-      }
-    });
-
-  } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to verify OTP'
-    });
+  } catch (error: any) {
+    console.error('[MOVZZ AUTH] Verify Error:', error.message);
+    res.status(500).json({ success: false, error: 'Verification failed' });
   }
 }

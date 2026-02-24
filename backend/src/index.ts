@@ -5,12 +5,15 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
+
 // Load environment variables
 dotenv.config();
 
 import authRoutes from './routes/auth.routes';
 import bookingRoutes from './routes/booking.routes';
 import adminRoutes from './routes/admin.routes';
+import rideRoutes from './routes/ride.routes';
+import quotesRoutes from './routes/quotes.routes';
 import prisma from './config/database';
 
 const app = express();
@@ -80,6 +83,8 @@ app.get('/health', async (_req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/rides', rideRoutes);
+app.use('/api/v1/quotes', quotesRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────
 
@@ -120,9 +125,14 @@ app.listen(PORT, () => {
     console.log('║  POST /api/v1/bookings                   ║');
     console.log('║  GET  /api/v1/bookings/:id               ║');
     console.log('║  POST /api/v1/bookings/:id/cancel        ║');
+    console.log('║  Rides (Aggregated Search):              ║');
+    console.log('║  POST /api/v1/rides/search               ║');
+    console.log('║  POST /api/v1/rides/select               ║');
     console.log('║  Admin:                                  ║');
     console.log('║  GET  /api/v1/admin/dashboard            ║');
     console.log('║  GET  /api/v1/admin/providers             ║');
+    console.log('║  Quotes:                                 ║');
+    console.log('║  POST /api/v1/quotes                     ║');
     console.log('╚══════════════════════════════════════════╝');
     console.log('');
 });

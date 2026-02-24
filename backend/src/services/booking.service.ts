@@ -105,6 +105,25 @@ export async function createBooking(params: {
         console.error(`Provider assignment failed for booking ${booking.id}:`, err);
     });
 
+    // ─── Real-Time Simulation ────────────────────────────
+    // In a real app, this would be a message queue or driver app update.
+    // For "real-time" demo, we simulate a driver accepting after 8 seconds.
+    setTimeout(async () => {
+        try {
+            const currentBooking = await prisma.booking.findUnique({ where: { id: booking.id } });
+            if (currentBooking && currentBooking.state === 'SEARCHING') {
+                await transitionState(booking.id, 'CONFIRMED', {
+                    provider: 'Sample Driver #42',
+                    carModel: 'Maruti Suzuki Dzire',
+                    plateNumber: 'TN-01-AB-1234',
+                });
+                console.log(`[Simulator] Booking ${booking.id} transitioned to CONFIRMED in real-time.`);
+            }
+        } catch (err: any) {
+            console.error('[Simulator] Real-time transition failed:', err.message);
+        }
+    }, 8000);
+
     return booking;
 }
 
