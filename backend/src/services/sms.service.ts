@@ -12,20 +12,11 @@ class MockSMSService implements SMSService {
     console.log(`║ To: ${phone.padEnd(28)} ║`);
     console.log(`║ OTP: ${otp.padEnd(27)} ║`);
     console.log('╚════════════════════════════════════╝');
-    
+
     await redis.set(`otp:${phone}`, otp, 300);
   }
 }
 
-class TwilioSMSService implements SMSService {
-  async sendOTP(phone: string, otp: string): Promise<void> {
-    console.log(`Sending OTP ${otp} to ${phone} via Twilio`);
-    await redis.set(`otp:${phone}`, otp, 300);
-  }
-}
-
-const smsService = process.env.SMS_PROVIDER === 'twilio' 
-  ? new TwilioSMSService() 
-  : new MockSMSService();
+const smsService = new MockSMSService();
 
 export default smsService;

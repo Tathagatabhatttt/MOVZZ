@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useBookingStore } from './stores/bookingStore';
 
 const transportModes = [
   { id: "cab", label: "Cab", icon: CabIcon, desc: "Doorstep comfort and AC ride" },
@@ -11,125 +12,6 @@ const destinationChips = ["Chennai Airport T1", "T Nagar", "OMR Tech Park", "Gui
 const sourceChips = ["Pacifica Aurum 1 Block-B5", "Anna Nagar", "Velachery"];
 const laneLabels = ["Cab", "Bike", "Auto", "Metro", "Reliable", "Parallel", "Safe ETA"];
 
-const baseResults = {
-  cab: [
-    {
-      tag: "Best",
-      name: "Prime Cab",
-      reliability: 94,
-      eta: 8,
-      fare: 412,
-      tone: "best",
-      why: "Strong 7-day completion trend, low cancel signals, and high nearby driver density."
-    },
-    {
-      tag: "Cheapest",
-      name: "City Saver Cab",
-      reliability: 88,
-      eta: 10,
-      fare: 325,
-      tone: "cheap",
-      why: "Lowest fare today, but moderate cancellation pattern in the current pickup corridor."
-    },
-    {
-      tag: "Costliest",
-      name: "Executive Sedan",
-      reliability: 97,
-      eta: 6,
-      fare: 690,
-      tone: "high",
-      why: "Premium fleet with high completion certainty and shortest dispatch response in this zone."
-    }
-  ],
-  bike: [
-    {
-      tag: "Best",
-      name: "Bike Prime",
-      reliability: 93,
-      eta: 5,
-      fare: 189,
-      tone: "best",
-      why: "Fast lane coverage and stable completion behavior in high-traffic evening windows."
-    },
-    {
-      tag: "Cheapest",
-      name: "Bike Saver",
-      reliability: 86,
-      eta: 7,
-      fare: 129,
-      tone: "cheap",
-      why: "Most economical option, but pickup reliability fluctuates during surge micro-zones."
-    },
-    {
-      tag: "Costliest",
-      name: "Bike Flex",
-      reliability: 95,
-      eta: 4,
-      fare: 245,
-      tone: "high",
-      why: "Priority rider allocation keeps ETA low and failure-recovery probability very high."
-    }
-  ],
-  auto: [
-    {
-      tag: "Best",
-      name: "Auto Prime",
-      reliability: 92,
-      eta: 9,
-      fare: 248,
-      tone: "best",
-      why: "Consistent acceptance quality and healthy active supply in your pickup radius."
-    },
-    {
-      tag: "Cheapest",
-      name: "Auto Saver",
-      reliability: 85,
-      eta: 11,
-      fare: 199,
-      tone: "cheap",
-      why: "Best price point, with slightly higher retries expected in current demand bands."
-    },
-    {
-      tag: "Costliest",
-      name: "Auto XL",
-      reliability: 95,
-      eta: 8,
-      fare: 335,
-      tone: "high",
-      why: "Higher-cost pool backed by high completion record and low volatility in nearby zones."
-    }
-  ],
-  metro: [
-    {
-      tag: "Best",
-      name: "Metro Link",
-      reliability: 98,
-      eta: 12,
-      fare: 90,
-      tone: "best",
-      why: "Fixed rail schedule and low disruption events produce near-certain arrival windows."
-    },
-    {
-      tag: "Cheapest",
-      name: "Metro Basic",
-      reliability: 95,
-      eta: 14,
-      fare: 60,
-      tone: "cheap",
-      why: "Lowest cost with high certainty, but includes longer walk and wait transfer windows."
-    },
-    {
-      tag: "Costliest",
-      name: "Metro Express",
-      reliability: 99,
-      eta: 9,
-      fare: 140,
-      tone: "high",
-      why: "Priority express corridor with strongest on-time reliability and minimum transfer risk."
-    }
-  ]
-};
-
 const screens = ["landing", "auth", "transport", "destination", "results"];
 
 function App() {
@@ -141,11 +23,17 @@ function App() {
   const [selectedRide, setSelectedRide] = useState(null);
   const [booked, setBooked] = useState(false);
 
-  const results = useMemo(() => baseResults[transport], [transport]);
+  // Hook into our backend data store!
+  const { quotes, isLoading, error, fetchQuotes, createBooking } = useBookingStore();
 
+  // Reset selected ride when quotes change
   useEffect(() => {
-    setSelectedRide(results[0]);
-  }, [results]);
+    if (quotes && quotes.length > 0) {
+      setSelectedRide(quotes[0]);
+    } else {
+      setSelectedRide(null);
+    }
+  }, [quotes]);
 
   function moveTo(next) {
     if (!screens.includes(next)) return;
@@ -155,17 +43,27 @@ function App() {
     setScreen(next);
   }
 
-  function findRides() {
+  async function findRides() {
     if (!destination.trim()) return;
     setBooked(false);
     setScreen("results");
+    
+    // Fetch real data from the backend!
+    await fetchQuotes(source, destination, transport);
   }
 
-  function bookRide() {
+  async function bookRide() {
     if (!selectedRide) return;
-    setBooked(true);
+    
+    // Call the backend to create the booking!
+    const success = await createBooking(source, destination);
+    
+    // If the database successfully creates the ride, show the success panel
+    if (success) {
+      setBooked(true);
+    }
   }
-
+  
   return (
     <main className="app-shell">
       <section className="phone-frame">
@@ -365,37 +263,61 @@ function App() {
           </div>
 
           <div className="result-list">
-            {results.map((item) => {
-              const active = selectedRide?.name === item.name;
-              return (
-                <button
-                  className={`result-card ${item.tone} ${active ? "active" : ""}`}
-                  key={`${item.tag}-${item.name}`}
-                  onClick={() => setSelectedRide(item)}
-                >
-                  <span className="tag">{item.tag}</span>
-                  <div className="result-head">
-                    <h3>{item.name}</h3>
-                    <strong>Rs {item.fare}</strong>
-                  </div>
-                  <p className="result-meta">Reliability {item.reliability}% • ETA {item.eta} min</p>
-                  <p className="reason">Why this score: {item.why}</p>
-                </button>
-              );
-            })}
+            {isLoading ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--ink-700)" }}>
+                <p style={{ fontWeight: "bold" }}>Querying The Brain...</p>
+                <small>Scoring providers for reliability</small>
+              </div>
+            ) : error ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--warn)" }}>
+                <p>{error}</p>
+                <button className="btn secondary" onClick={findRides}>Try Again</button>
+              </div>
+            ) : quotes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--ink-700)" }}>
+                <p>No rides available right now.</p>
+                <button className="btn secondary" onClick={() => setScreen("destination")}>Go Back</button>
+              </div>
+            ) : (
+              quotes.map((item) => {
+                const active = selectedRide?.id === item.id;
+                // Map the backend tag to the CSS classes
+                const toneClass = item.tag === 'Cheapest' ? 'cheap' : item.tag === 'Premium' ? 'high' : 'best';
+                
+                return (
+                  <button
+                    className={`result-card ${toneClass} ${active ? "active" : ""}`}
+                    key={item.id}
+                    onClick={() => setSelectedRide(item)}
+                  >
+                    {item.tag && <span className="tag">{item.tag}</span>}
+                    <div className="result-head">
+                      <h3>{item.type || item.line} {item.provider ? `via ${item.provider}` : ''}</h3>
+                      <strong>Rs {item.price}</strong>
+                    </div>
+                    <p className="result-meta">
+                      {item.reliability ? `Reliability ${item.reliability}%` : `${item.stations} stations`} • ETA {item.eta} min
+                    </p>
+                    {item.score && (
+                      <p className="reason">Match Score: {item.score}/100</p>
+                    )}
+                  </button>
+                );
+              })
+            )}
           </div>
 
           <div className="action-dock">
             <button className="btn primary" onClick={bookRide} disabled={!selectedRide || booked}>
-              {booked ? "Ride Booked" : `Book ${selectedRide?.name || "Ride"} Now`}
+              {booked ? "Ride Booked" : `Book ${selectedRide?.type || selectedRide?.line || "Ride"} Now`}
             </button>
           </div>
 
           {booked && (
             <div className="booking-panel">
               <p>Confirmed</p>
-              <h4>{selectedRide.name} is on the way</h4>
-              <span>Driver assigned • ETA {selectedRide.eta} min • Live tracking enabled</span>
+              <h4>{selectedRide?.type || selectedRide?.line} is on the way</h4>
+              <span>{selectedRide?.provider ? `Driver assigned (${selectedRide?.provider})` : `Metro route confirmed`} • ETA {selectedRide?.eta} min • Live tracking enabled</span>
             </div>
           )}
         </section>

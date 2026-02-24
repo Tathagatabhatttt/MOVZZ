@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  sendOTP, verifyOTP, isLoggedIn, logout, getCurrentUser,
+  createBooking, pollBookingStatus, checkHealth,
+  searchRides, selectRideEstimate, getQuotes,
+} from "./api";
 
 // ============================================================
 // MOVZZ — Reliability Layer for Urban Mobility
@@ -80,128 +85,140 @@ const RIDE_OPTIONS = {
 // --- SVG Icons ---
 const GoogleLogo = () => (
   <svg width="20" height="20" viewBox="0 0 24 24">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
   </svg>
 );
 
 const AppleLogo = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill={COLORS.navy}>
-    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.14 4.48-3.74 4.25z"/>
+    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.14 4.48-3.74 4.25z" />
   </svg>
 );
 
 const PhoneIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={COLORS.navy} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
   </svg>
 );
 
 const CabIcon = () => (
   <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-    <rect x="8" y="24" width="48" height="22" rx="6" fill={COLORS.navy}/>
-    <rect x="12" y="28" width="16" height="10" rx="2" fill="#E8F0FE" opacity="0.9"/>
-    <rect x="36" y="28" width="16" height="10" rx="2" fill="#E8F0FE" opacity="0.9"/>
-    <rect x="18" y="16" width="28" height="12" rx="4" fill={COLORS.blue}/>
-    <circle cx="18" cy="50" r="5" fill={COLORS.gray700}/><circle cx="18" cy="50" r="2.5" fill={COLORS.gray300}/>
-    <circle cx="46" cy="50" r="5" fill={COLORS.gray700}/><circle cx="46" cy="50" r="2.5" fill={COLORS.gray300}/>
-    <rect x="26" y="10" width="12" height="8" rx="2" fill={COLORS.orange}/>
+    <rect x="8" y="24" width="48" height="22" rx="6" fill={COLORS.navy} />
+    <rect x="12" y="28" width="16" height="10" rx="2" fill="#E8F0FE" opacity="0.9" />
+    <rect x="36" y="28" width="16" height="10" rx="2" fill="#E8F0FE" opacity="0.9" />
+    <rect x="18" y="16" width="28" height="12" rx="4" fill={COLORS.blue} />
+    <circle cx="18" cy="50" r="5" fill={COLORS.gray700} /><circle cx="18" cy="50" r="2.5" fill={COLORS.gray300} />
+    <circle cx="46" cy="50" r="5" fill={COLORS.gray700} /><circle cx="46" cy="50" r="2.5" fill={COLORS.gray300} />
+    <rect x="26" y="10" width="12" height="8" rx="2" fill={COLORS.orange} />
   </svg>
 );
 
 const BikeIcon = () => (
   <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-    <circle cx="16" cy="42" r="10" stroke={COLORS.navy} strokeWidth="3" fill="none"/>
-    <circle cx="48" cy="42" r="10" stroke={COLORS.navy} strokeWidth="3" fill="none"/>
-    <path d="M16 42L28 22H40L48 42" stroke={COLORS.blue} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M28 22L24 42" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round"/>
-    <circle cx="28" cy="18" r="4" fill={COLORS.blue}/>
-    <path d="M32 22H44" stroke={COLORS.navy} strokeWidth="2.5" strokeLinecap="round"/>
+    <circle cx="16" cy="42" r="10" stroke={COLORS.navy} strokeWidth="3" fill="none" />
+    <circle cx="48" cy="42" r="10" stroke={COLORS.navy} strokeWidth="3" fill="none" />
+    <path d="M16 42L28 22H40L48 42" stroke={COLORS.blue} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M28 22L24 42" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round" />
+    <circle cx="28" cy="18" r="4" fill={COLORS.blue} />
+    <path d="M32 22H44" stroke={COLORS.navy} strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 );
 
 const AutoIcon = () => (
   <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-    <path d="M12 44V28C12 22 16 18 22 18H42L52 28V44" stroke="#2A8A3E" strokeWidth="3" fill="none"/>
-    <rect x="16" y="26" width="14" height="10" rx="2" fill="#E8F0FE"/>
-    <rect x="34" y="26" width="14" height="10" rx="2" fill="#E8F0FE"/>
-    <circle cx="18" cy="48" r="5" fill={COLORS.gray700}/><circle cx="18" cy="48" r="2.5" fill={COLORS.gray300}/>
-    <circle cx="46" cy="48" r="5" fill={COLORS.gray700}/><circle cx="46" cy="48" r="2.5" fill={COLORS.gray300}/>
-    <rect x="10" y="14" width="4" height="10" rx="2" fill="#FFC107"/>
+    <path d="M12 44V28C12 22 16 18 22 18H42L52 28V44" stroke="#2A8A3E" strokeWidth="3" fill="none" />
+    <rect x="16" y="26" width="14" height="10" rx="2" fill="#E8F0FE" />
+    <rect x="34" y="26" width="14" height="10" rx="2" fill="#E8F0FE" />
+    <circle cx="18" cy="48" r="5" fill={COLORS.gray700} /><circle cx="18" cy="48" r="2.5" fill={COLORS.gray300} />
+    <circle cx="46" cy="48" r="5" fill={COLORS.gray700} /><circle cx="46" cy="48" r="2.5" fill={COLORS.gray300} />
+    <rect x="10" y="14" width="4" height="10" rx="2" fill="#FFC107" />
   </svg>
 );
 
 const MetroIcon = () => (
   <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-    <rect x="12" y="10" width="40" height="36" rx="8" stroke={COLORS.blue} strokeWidth="3" fill="none"/>
-    <rect x="18" y="18" width="12" height="10" rx="2" fill="#E8F0FE"/>
-    <rect x="34" y="18" width="12" height="10" rx="2" fill="#E8F0FE"/>
-    <line x1="20" y1="50" x2="26" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round"/>
-    <line x1="44" y1="50" x2="38" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round"/>
-    <circle cx="22" cy="38" r="3" fill={COLORS.blue}/><circle cx="42" cy="38" r="3" fill={COLORS.blue}/>
-    <line x1="26" y1="58" x2="38" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round"/>
+    <rect x="12" y="10" width="40" height="36" rx="8" stroke={COLORS.blue} strokeWidth="3" fill="none" />
+    <rect x="18" y="18" width="12" height="10" rx="2" fill="#E8F0FE" />
+    <rect x="34" y="18" width="12" height="10" rx="2" fill="#E8F0FE" />
+    <line x1="20" y1="50" x2="26" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round" />
+    <line x1="44" y1="50" x2="38" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round" />
+    <circle cx="22" cy="38" r="3" fill={COLORS.blue} /><circle cx="42" cy="38" r="3" fill={COLORS.blue} />
+    <line x1="26" y1="58" x2="38" y2="58" stroke={COLORS.navy} strokeWidth="3" strokeLinecap="round" />
   </svg>
 );
 
 const LocationPinIcon = ({ color = COLORS.blue, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill={color}/>
-    <circle cx="12" cy="9" r="2.5" fill="white"/>
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill={color} />
+    <circle cx="12" cy="9" r="2.5" fill="white" />
   </svg>
 );
 
 const CheckCircle = ({ size = 16, color = COLORS.green }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
   </svg>
 );
 
 const ChevronRight = ({ size = 18, color = COLORS.gray400 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
 );
 
 const BackArrow = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.navy} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.navy} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
 );
 
 const MapPinDot = ({ color = COLORS.green, size = 10 }) => (
-  <svg width={size} height={size} viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill={color} opacity="0.2"/><circle cx="6" cy="6" r="3" fill={color}/></svg>
+  <svg width={size} height={size} viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill={color} opacity="0.2" /><circle cx="6" cy="6" r="3" fill={color} /></svg>
 );
 
 const ShieldIcon = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={COLORS.blue}>
-    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
   </svg>
 );
 
 const ClockIcon = ({ size = 14, color = COLORS.gray500 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><polyline points="12,6 12,12 16,14" /></svg>
 );
 
 const ProviderLogo = ({ provider, size = 28 }) => {
   const logos = {
     uber: (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        <rect width="40" height="40" rx="8" fill="#000"/>
+        <rect width="40" height="40" rx="8" fill="#000" />
         <text x="20" y="26" textAnchor="middle" fill="white" fontFamily="'Montserrat', sans-serif" fontWeight="700" fontSize="14">U</text>
       </svg>
     ),
     ola: (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        <rect width="40" height="40" rx="8" fill="#1C8B3C"/>
+        <rect width="40" height="40" rx="8" fill="#1C8B3C" />
         <text x="20" y="26" textAnchor="middle" fill="white" fontFamily="'Montserrat', sans-serif" fontWeight="700" fontSize="13">Ola</text>
       </svg>
     ),
     rapido: (
       <svg width={size} height={size} viewBox="0 0 40 40">
-        <rect width="40" height="40" rx="8" fill="#FFD700"/>
+        <rect width="40" height="40" rx="8" fill="#FFD700" />
         <text x="20" y="26" textAnchor="middle" fill="#000" fontFamily="'Montserrat', sans-serif" fontWeight="700" fontSize="13">R</text>
       </svg>
     ),
+    nammayatri: (
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        <rect width="40" height="40" rx="8" fill="#2F9C45" />
+        <text x="20" y="18" textAnchor="middle" fill="white" fontFamily="'Montserrat', sans-serif" fontWeight="800" fontSize="11">NY</text>
+        <text x="20" y="32" textAnchor="middle" fill="#C8F7D3" fontFamily="'DM Sans', sans-serif" fontWeight="500" fontSize="7">Open</text>
+      </svg>
+    ),
   };
-  return logos[provider] || null;
+  return logos[provider] || (
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" rx="8" fill={COLORS.gray400} />
+      <text x="20" y="26" textAnchor="middle" fill="white" fontFamily="'Montserrat', sans-serif" fontWeight="700" fontSize="14">{(provider || '?')[0].toUpperCase()}</text>
+    </svg>
+  );
 };
 
 // --- Global Styles (injected once) ---
@@ -278,7 +295,7 @@ const PhoneFrame = ({ children }) => (
     fontFamily: "'Montserrat', 'SF Pro Display', -apple-system, sans-serif",
     padding: "20px",
   }}>
-    <GlobalStyles/>
+    <GlobalStyles />
     <div style={{
       width: 390, height: 844,
       borderRadius: 50, background: COLORS.white,
@@ -289,7 +306,7 @@ const PhoneFrame = ({ children }) => (
       <div style={{
         position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
         width: 126, height: 34, background: COLORS.navy, borderRadius: 20, zIndex: 1000,
-      }}/>
+      }} />
       {/* Status Bar */}
       <div style={{
         position: "absolute", top: 12, left: 30, right: 30,
@@ -298,13 +315,13 @@ const PhoneFrame = ({ children }) => (
         <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.navy, fontFamily: "'DM Sans', sans-serif" }}>9:41</span>
         <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
           <svg width="16" height="12" viewBox="0 0 16 12" fill={COLORS.navy}>
-            <rect x="0" y="6" width="3" height="6" rx="0.5"/><rect x="4.5" y="4" width="3" height="8" rx="0.5"/>
-            <rect x="9" y="1.5" width="3" height="10.5" rx="0.5"/><rect x="13.5" y="0" width="2.5" height="12" rx="0.5"/>
+            <rect x="0" y="6" width="3" height="6" rx="0.5" /><rect x="4.5" y="4" width="3" height="8" rx="0.5" />
+            <rect x="9" y="1.5" width="3" height="10.5" rx="0.5" /><rect x="13.5" y="0" width="2.5" height="12" rx="0.5" />
           </svg>
           <svg width="24" height="12" viewBox="0 0 24 12" fill={COLORS.navy}>
-            <rect x="0" y="0" width="21" height="12" rx="2" stroke={COLORS.navy} strokeWidth="1" fill="none"/>
-            <rect x="1.5" y="1.5" width="16" height="9" rx="1" fill={COLORS.navy}/>
-            <rect x="22" y="3.5" width="2" height="5" rx="1" fill={COLORS.navy}/>
+            <rect x="0" y="0" width="21" height="12" rx="2" stroke={COLORS.navy} strokeWidth="1" fill="none" />
+            <rect x="1.5" y="1.5" width="16" height="9" rx="1" fill={COLORS.navy} />
+            <rect x="22" y="3.5" width="2" height="5" rx="1" fill={COLORS.navy} />
           </svg>
         </div>
       </div>
@@ -337,7 +354,7 @@ const SplashScreen = ({ onComplete }) => {
       <div style={{
         position: "absolute", inset: 0, opacity: phase >= 1 ? 0.03 : 0, transition: "opacity 1s ease",
         backgroundImage: `radial-gradient(${COLORS.blue} 1px, transparent 1px)`, backgroundSize: "24px 24px",
-      }}/>
+      }} />
       <div style={{
         opacity: phase >= 1 ? 1 : 0, transform: phase >= 1 ? "translateY(0) scale(1)" : "translateY(20px) scale(0.9)",
         transition: "all 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -368,19 +385,87 @@ const SplashScreen = ({ onComplete }) => {
         position: "absolute", bottom: 80, left: "50%", transform: "translateX(-50%)",
         width: phase >= 2 ? 60 : 0, height: 3, background: COLORS.blue, borderRadius: 2,
         transition: "width 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s",
-      }}/>
+      }} />
       <div style={{
         position: "absolute", inset: 0, background: COLORS.white,
         opacity: phase >= 4 ? 1 : 0, transition: "opacity 0.4s ease", pointerEvents: "none",
-      }}/>
+      }} />
     </div>
   );
 };
 
-// --- Auth Screen ---
+// --- Auth Screen (Real OTP Flow) ---
 const AuthScreen = ({ onComplete }) => {
   const [visible, setVisible] = useState(false);
+  const [step, setStep] = useState('phone'); // phone | otp | verifying
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [devOtp, setDevOtp] = useState(null);
+
   useEffect(() => { setTimeout(() => setVisible(true), 80); }, []);
+
+  // Check if already logged in
+  useEffect(() => {
+    if (isLoggedIn()) onComplete();
+  }, []);
+
+  const handleSendOTP = async () => {
+    if (phone.length < 3) { setError('Enter a valid phone or email'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await sendOTP(phone);
+      if (result.success) {
+        setStep('otp');
+        if (result.otp) setDevOtp(result.otp);
+        if (result.channel === 'email' && result.preview) {
+          setError(`Email sent! Preview it here: ${result.preview}`); // Using error block for now to show link
+        }
+      } else {
+        setError(result.error || 'Failed to send OTP');
+      }
+    } catch {
+      console.warn('Backend unreachable');
+      onComplete();
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otp.length !== 6) { setError('Enter the 6-digit OTP'); return; }
+    setLoading(true);
+    setError(null);
+    setStep('verifying');
+    try {
+      const result = await verifyOTP(phone.length === 10 ? `+91${phone}` : phone, otp);
+      if (result.success) {
+        onComplete();
+      } else {
+        setError(result.error || 'Invalid OTP');
+        setStep('otp');
+      }
+    } catch {
+      console.warn('Backend unreachable, skipping auth');
+      onComplete();
+    }
+    setLoading(false);
+  };
+
+  const handleSkip = async () => {
+    // Auto-login with demo number so booking API works
+    try {
+      const demoPhone = '+919999999999';
+      const otpResult = await sendOTP(demoPhone);
+      if (otpResult.success && otpResult.otp) {
+        await verifyOTP(demoPhone, otpResult.otp);
+      }
+    } catch {
+      // Backend not available — continue anyway
+    }
+    onComplete();
+  };
 
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: COLORS.white }}>
@@ -393,43 +478,129 @@ const AuthScreen = ({ onComplete }) => {
           </svg>
         </div>
         <div style={{ marginTop: 16, opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(20px)", transition: "all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.3s" }}>
-          <p style={{ fontSize: 22, fontWeight: 700, color: COLORS.navy, textAlign: "center", margin: "0 0 6px" }}>Welcome aboard</p>
-          <p style={{ fontSize: 14, color: COLORS.gray500, textAlign: "center", margin: 0, fontFamily: "'DM Sans', sans-serif" }}>Sign in to get reliable rides, every time.</p>
+          <p style={{ fontSize: 22, fontWeight: 700, color: COLORS.navy, textAlign: "center", margin: "0 0 6px" }}>
+            {step === 'phone' ? 'Welcome aboard' : 'Verify your number'}
+          </p>
+          <p style={{ fontSize: 14, color: COLORS.gray500, textAlign: "center", margin: 0, fontFamily: "'DM Sans', sans-serif" }}>
+            {step === 'phone' ? 'Sign in to get reliable rides, every time.' : `Enter the OTP sent to +91${phone}`}
+          </p>
         </div>
       </div>
 
       <div style={{ padding: "0 28px 60px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {[
-          { icon: <GoogleLogo/>, label: "Continue with Google", delay: 0.4 },
-          { icon: <AppleLogo/>, label: "Continue with Apple", delay: 0.5 },
-          { icon: <PhoneIcon/>, label: "Continue with Phone", delay: 0.6 },
-        ].map((btn, i) => (
-          <button key={i} onClick={onComplete} className="movzz-btn" style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-            width: "100%", height: 54, border: `1.5px solid ${COLORS.gray200}`, borderRadius: 14,
-            background: COLORS.white, cursor: "pointer", fontSize: 15, fontWeight: 600,
-            color: COLORS.navy, fontFamily: "'DM Sans', sans-serif",
-            opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)",
-            transition: `all 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${btn.delay}s`,
-          }}>
-            {btn.icon}{btn.label}
-          </button>
-        ))}
+        {step === 'phone' ? (
+          <>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10, height: 54,
+              border: `1.5px solid ${COLORS.gray200}`, borderRadius: 14,
+              padding: "0 16px", background: COLORS.white,
+              opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)",
+              transition: "all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.4s",
+            }}>
+              {!phone.includes('@') && <span style={{ fontSize: 15, fontWeight: 600, color: COLORS.gray500 }}>+91</span>}
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Phone or Email"
+                style={{ flex: 1, border: "none", outline: "none", fontSize: 15, fontWeight: 500, color: COLORS.navy, fontFamily: "'DM Sans', sans-serif", background: "transparent" }}
+              />
+              {(phone.length === 10 || phone.includes('@')) && <CheckCircle size={18} color={COLORS.green} />}
+            </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "6px 0", opacity: visible ? 1 : 0, transition: "opacity 0.7s ease 0.7s" }}>
-          <div style={{ flex: 1, height: 1, background: COLORS.gray200 }}/>
-          <span style={{ fontSize: 12, color: COLORS.gray400, fontFamily: "'DM Sans', sans-serif" }}>or</span>
-          <div style={{ flex: 1, height: 1, background: COLORS.gray200 }}/>
-        </div>
+            <button
+              onClick={handleSendOTP}
+              disabled={loading || (phone.length < 10 && !phone.includes('@'))}
+              style={{
+                width: "100%", height: 54, border: "none", borderRadius: 14,
+                background: (phone.length === 10 || phone.includes('@')) ? COLORS.blue : COLORS.gray200,
+                color: (phone.length === 10 || phone.includes('@')) ? COLORS.white : COLORS.gray400,
+                fontSize: 16, fontWeight: 700, cursor: (phone.length === 10 || phone.includes('@')) ? "pointer" : "default",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)",
+                transition: "all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.5s",
+                fontFamily: "'DM Sans', sans-serif",
+                boxShadow: (phone.length === 10 || phone.includes('@')) ? "0 8px 16px rgba(59, 130, 246, 0.2)" : "none",
+              }}
+            >
+              {loading ? (
+                <><div style={{ width: 18, height: 18, borderRadius: 9, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: COLORS.white, animation: 'movzz-spin 0.8s linear infinite' }} /> Sending...</>
+              ) : 'Get Started'}
+            </button>
 
-        <button onClick={onComplete} className="movzz-btn" style={{
-          width: "100%", height: 54, border: "none", borderRadius: 14, background: COLORS.navy,
-          cursor: "pointer", fontSize: 15, fontWeight: 600, color: COLORS.white, fontFamily: "'DM Sans', sans-serif",
-          opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)",
-          transition: "all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s",
-        }}>
-          Sign in with Email
-        </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "6px 0", opacity: visible ? 1 : 0, transition: "opacity 0.7s ease 0.6s" }}>
+              <div style={{ flex: 1, height: 1, background: COLORS.gray200 }} />
+              <span style={{ fontSize: 12, color: COLORS.gray400, fontFamily: "'DM Sans', sans-serif" }}>or</span>
+              <div style={{ flex: 1, height: 1, background: COLORS.gray200 }} />
+            </div>
+
+            <button onClick={handleSkip} className="movzz-btn" style={{
+              width: "100%", height: 48, border: `1.5px solid ${COLORS.gray200}`, borderRadius: 14,
+              background: COLORS.white, cursor: "pointer", fontSize: 14, fontWeight: 500,
+              color: COLORS.gray500, fontFamily: "'DM Sans', sans-serif",
+              opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)",
+              transition: "all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.65s",
+            }}>
+              Skip for now (Demo)
+            </button>
+          </>
+        ) : (
+          <>
+            {devOtp && (
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: COLORS.orangeLight, marginBottom: 4 }}>
+                <p style={{ fontSize: 12, color: COLORS.orange, margin: 0, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+                  📱 Dev Mode — Your OTP is: <span style={{ fontWeight: 800, fontSize: 16 }}>{devOtp}</span>
+                </p>
+              </div>
+            )}
+
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: 54,
+              border: `1.5px solid ${COLORS.blue}`, borderRadius: 14,
+              padding: "0 16px", background: COLORS.blueLight,
+            }}>
+              <input
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="• • • • • •"
+                type="tel"
+                maxLength={6}
+                autoFocus
+                style={{
+                  flex: 1, border: "none", outline: "none", fontSize: 24, fontWeight: 700,
+                  color: COLORS.navy, fontFamily: "'Montserrat', sans-serif",
+                  background: "transparent", textAlign: "center", letterSpacing: 8,
+                }}
+              />
+            </div>
+
+            <button onClick={handleVerifyOTP} disabled={loading || otp.length !== 6} className="movzz-btn" style={{
+              width: "100%", height: 54, border: "none", borderRadius: 14,
+              background: otp.length === 6 ? COLORS.navy : COLORS.gray200,
+              color: otp.length === 6 ? COLORS.white : COLORS.gray400,
+              cursor: otp.length === 6 ? "pointer" : "default",
+              fontSize: 15, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              {loading ? (
+                <><div style={{ width: 18, height: 18, borderRadius: 9, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: COLORS.white, animation: 'movzz-spin 0.8s linear infinite' }} /> Verifying...</>
+              ) : 'Verify & Sign In'}
+            </button>
+
+            <button onClick={() => { setStep('phone'); setOtp(''); setError(null); }} className="movzz-btn" style={{
+              width: "100%", height: 44, border: "none", borderRadius: 14,
+              background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 500,
+              color: COLORS.blue, fontFamily: "'DM Sans', sans-serif",
+            }}>
+              ← Change number
+            </button>
+          </>
+        )}
+
+        {error && (
+          <p style={{ textAlign: "center", fontSize: 13, color: COLORS.red, margin: "4px 0 0", fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+            {error}
+          </p>
+        )}
 
         <p style={{
           textAlign: "center", fontSize: 11, color: COLORS.gray400, margin: "8px 0 0",
@@ -439,7 +610,7 @@ const AuthScreen = ({ onComplete }) => {
           By continuing, you agree to our <span style={{ color: COLORS.blue, fontWeight: 500 }}>Terms</span> and <span style={{ color: COLORS.blue, fontWeight: 500 }}>Privacy Policy</span>
         </p>
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -450,10 +621,10 @@ const TransportScreen = ({ onSelect }) => {
   useEffect(() => { setTimeout(() => setVisible(true), 80); }, []);
 
   const modes = [
-    { id: "cab", label: "Cab", desc: "Comfort rides", icon: <CabIcon/> },
-    { id: "bike", label: "Bike Taxi", desc: "Quick & affordable", icon: <BikeIcon/> },
-    { id: "auto", label: "Auto", desc: "City rides", icon: <AutoIcon/> },
-    { id: "metro", label: "Metro", desc: "Rail transit", icon: <MetroIcon/> },
+    { id: "cab", label: "Cab", desc: "Comfort rides", icon: <CabIcon /> },
+    { id: "bike", label: "Bike Taxi", desc: "Quick & affordable", icon: <BikeIcon /> },
+    { id: "auto", label: "Auto", desc: "City rides", icon: <AutoIcon /> },
+    { id: "metro", label: "Metro", desc: "Rail transit", icon: <MetroIcon /> },
   ];
 
   const handleSelect = (mode) => {
@@ -500,20 +671,20 @@ const TransportScreen = ({ onSelect }) => {
         ].map((dest, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i === 0 ? `1px solid ${COLORS.gray100}` : "none" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: COLORS.gray100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ClockIcon size={16} color={COLORS.gray500}/>
+              <ClockIcon size={16} color={COLORS.gray500} />
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.navy, margin: 0 }}>{dest.name}</p>
               <p style={{ fontSize: 12, color: COLORS.gray400, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{dest.sub}</p>
             </div>
-            <ChevronRight/>
+            <ChevronRight />
           </div>
         ))}
       </div>
 
-      <div style={{ flex: 1 }}/>
+      <div style={{ flex: 1 }} />
       <div style={{ padding: "12px 24px 32px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: visible ? 1 : 0, transition: "opacity 0.7s ease 0.8s" }}>
-        <ShieldIcon size={12}/>
+        <ShieldIcon size={12} />
         <span style={{ fontSize: 11, color: COLORS.gray400, fontFamily: "'DM Sans', sans-serif" }}>Every ride backed by MOVZZ reliability guarantee</span>
       </div>
     </div>
@@ -662,7 +833,7 @@ const ChennaiMap = ({ pickupSelected, dropSelected, activeField, onLocationSelec
             width: 28, height: 28, borderRadius: 14,
             border: `3px solid ${COLORS.gray200}`, borderTopColor: COLORS.blue,
             animation: "movzz-spin 0.8s linear infinite",
-          }}/>
+          }} />
           <span style={{ fontSize: 12, color: COLORS.gray400, fontFamily: "'DM Sans', sans-serif" }}>Loading map...</span>
         </div>
       )}
@@ -724,7 +895,7 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
           <button onClick={onBack} className="movzz-btn" style={{
             width: 38, height: 38, borderRadius: 12, border: `1.5px solid ${COLORS.gray200}`,
             background: COLORS.white, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-          }}><BackArrow size={18}/></button>
+          }}><BackArrow size={18} /></button>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: COLORS.navy, margin: 0 }}>Set your route</h2>
             <p style={{ fontSize: 12, color: COLORS.gray400, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{modeLabel} ride</p>
@@ -733,9 +904,9 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
 
         <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 20, flexShrink: 0 }}>
-            <MapPinDot color={COLORS.green} size={12}/>
-            <div style={{ width: 2, height: 24, background: COLORS.gray200, margin: "2px 0" }}/>
-            <LocationPinIcon color={COLORS.blue} size={16}/>
+            <MapPinDot color={COLORS.green} size={12} />
+            <div style={{ width: 2, height: 24, background: COLORS.gray200, margin: "2px 0" }} />
+            <LocationPinIcon color={COLORS.blue} size={16} />
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
             <div onClick={() => setActiveField("pickup")} style={{
@@ -749,7 +920,7 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
                 onFocus={() => setActiveField("pickup")} placeholder="Pickup location"
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, fontWeight: 500, color: COLORS.navy, fontFamily: "'DM Sans', sans-serif" }}
               />
-              {pickupSelected && <CheckCircle size={16} color={COLORS.green}/>}
+              {pickupSelected && <CheckCircle size={16} color={COLORS.green} />}
             </div>
             <div onClick={() => setActiveField("drop")} style={{
               display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 14px",
@@ -762,7 +933,7 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
                 onFocus={() => setActiveField("drop")} placeholder="Drop location"
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, fontWeight: 500, color: COLORS.navy, fontFamily: "'DM Sans', sans-serif" }}
               />
-              {dropSelected && <CheckCircle size={16} color={COLORS.blue}/>}
+              {dropSelected && <CheckCircle size={16} color={COLORS.blue} />}
             </div>
           </div>
         </div>
@@ -808,7 +979,7 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
               border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
             }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: COLORS.gray100, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <LocationPinIcon color={activeField === "pickup" ? COLORS.green : COLORS.blue} size={16}/>
+                <LocationPinIcon color={activeField === "pickup" ? COLORS.green : COLORS.blue} size={16} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.navy, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{loc.name}</p>
@@ -835,31 +1006,59 @@ const LocationScreen = ({ mode, onBack, onConfirm }) => {
   );
 };
 
-// --- Results Screen ---
+// --- Results Screen (Live API + Namma Yatri) ---
 const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
   const [visible, setVisible] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rides, setRides] = useState([]);
+  const [providers, setProviders] = useState({});
+  const [apiError, setApiError] = useState(null);
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 80);
-    setTimeout(() => setLoading(false), 1800);
+    fetchRides();
   }, []);
 
-  const options = RIDE_OPTIONS[mode] || [];
-  let tagged = [];
-  if (mode !== "metro") {
-    const sorted = [...options].sort((a, b) => b.score - a.score);
-    tagged = sorted.map((opt, i) => {
+  const fetchRides = async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      // Call the new /quotes API (Task #3 — includes scoring, tags, NY)
+      const result = await getQuotes({
+        pickupLat: pickup?.lat,
+        pickupLng: pickup?.lng,
+        dropoffLat: drop?.lat,
+        dropoffLng: drop?.lng,
+        transportMode: mode,
+      });
+
+      if (result.success && result.data?.quotes) {
+        setRides(result.data.quotes);
+        setProviders(result.data.meta?.providers || {});
+      } else {
+        // Fall back to hardcoded data
+        console.warn('Quotes API error, using fallback data:', result.error);
+        setApiError('Using demo data — backend offline');
+        setRides(getFallbackRides(mode));
+      }
+    } catch {
+      console.warn('Backend unreachable, using fallback data');
+      setApiError('Using demo data — backend offline');
+      setRides(getFallbackRides(mode));
+    }
+    setLoading(false);
+  };
+
+  const getFallbackRides = (m) => {
+    const fallback = RIDE_OPTIONS[m] || [];
+    if (m === 'metro') return fallback;
+    return [...fallback].sort((a, b) => b.score - a.score).map((opt, i) => {
       let tag = null;
-      if (i === 0) tag = { label: "Best Match", color: COLORS.green, bg: COLORS.greenLight };
-      const cheapest = sorted.reduce((p, c) => c.price < p.price ? c : p);
-      const costliest = sorted.reduce((p, c) => c.price > p.price ? c : p);
-      if (opt === cheapest && !tag) tag = { label: "Cheapest", color: COLORS.blue, bg: COLORS.blueLight };
-      if (opt === costliest && !tag) tag = { label: "Premium", color: COLORS.orange, bg: COLORS.orangeLight };
-      return { ...opt, tag };
+      if (i === 0) tag = { label: 'Best Match', color: COLORS.green, bg: COLORS.greenLight };
+      return { ...opt, tag, source: 'simulated' };
     });
-  }
+  };
 
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: COLORS.gray50 }}>
@@ -874,40 +1073,65 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
           <button onClick={onBack} className="movzz-btn" style={{
             width: 38, height: 38, borderRadius: 12, border: `1.5px solid ${COLORS.gray200}`,
             background: COLORS.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          }}><BackArrow size={18}/></button>
+          }}><BackArrow size={18} /></button>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: COLORS.navy, margin: 0 }}>Available rides</h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, background: COLORS.blueLight }}>
-            <ShieldIcon size={12}/>
+            <ShieldIcon size={12} />
             <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.blue, fontFamily: "'DM Sans', sans-serif" }}>Verified</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: COLORS.gray50, borderRadius: 12 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <MapPinDot color={COLORS.green} size={8}/>
-            <div style={{ width: 1.5, height: 16, background: COLORS.gray300 }}/>
-            <LocationPinIcon color={COLORS.blue} size={12}/>
+            <MapPinDot color={COLORS.green} size={8} />
+            <div style={{ width: 1.5, height: 16, background: COLORS.gray300 }} />
+            <LocationPinIcon color={COLORS.blue} size={12} />
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.navy, margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pickup?.name}</p>
             <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.navy, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{drop?.name}</p>
           </div>
         </div>
+
+        {/* Provider status strip */}
+        {!loading && (
+          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+            {Object.entries(providers).map(([key, active]) => (
+              <div key={key} style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "3px 8px", borderRadius: 6,
+                background: active ? COLORS.greenLight : COLORS.gray100,
+                fontSize: 10, fontWeight: 600,
+                color: active ? COLORS.green : COLORS.gray400,
+                fontFamily: "'DM Sans', sans-serif",
+              }}>
+                <div style={{ width: 5, height: 5, borderRadius: 3, background: active ? COLORS.green : COLORS.gray400 }} />
+                {key === 'nammayatri' ? 'Namma Yatri' : key.charAt(0).toUpperCase() + key.slice(1)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {apiError && (
+          <p style={{ fontSize: 11, color: COLORS.orange, margin: "8px 0 0", fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+            ⚠️ {apiError}
+          </p>
+        )}
       </div>
 
       {/* Results */}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {loading ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, gap: 16 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 24, border: `3px solid ${COLORS.gray200}`, borderTopColor: COLORS.blue, animation: "movzz-spin 0.8s linear infinite" }}/>
+            <div style={{ width: 48, height: 48, borderRadius: 24, border: `3px solid ${COLORS.gray200}`, borderTopColor: COLORS.blue, animation: "movzz-spin 0.8s linear infinite" }} />
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.navy, margin: "0 0 4px", textAlign: "center" }}>Querying providers...</p>
-              <p style={{ fontSize: 12, color: COLORS.gray400, margin: 0, textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>Scoring for reliability</p>
+              <p style={{ fontSize: 12, color: COLORS.gray400, margin: 0, textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>Namma Yatri · Uber · Ola · Rapido</p>
             </div>
           </div>
         ) : mode === "metro" ? (
-          options.map((opt, i) => (
+          rides.map((opt, i) => (
             <button key={i} onClick={() => setSelectedIdx(i)} className="movzz-btn" style={{
               display: "flex", flexDirection: "column", padding: 16,
               border: `2px solid ${selectedIdx === i ? COLORS.blue : COLORS.gray200}`,
@@ -917,7 +1141,7 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: opt.line === "Blue Line" ? "#1565C0" : "#2E7D32", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <MetroIcon/>
+                  <MetroIcon />
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: COLORS.navy, margin: 0 }}>{opt.line}</p>
@@ -933,8 +1157,8 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
             </button>
           ))
         ) : (
-          tagged.map((opt, i) => (
-            <button key={i} onClick={() => setSelectedIdx(i)} className="movzz-btn" style={{
+          rides.map((opt, i) => (
+            <button key={opt.id || i} onClick={() => setSelectedIdx(i)} className="movzz-btn" style={{
               display: "flex", flexDirection: "column", padding: 16,
               border: `2px solid ${selectedIdx === i ? COLORS.blue : COLORS.gray200}`,
               borderRadius: 16, background: selectedIdx === i ? COLORS.blueLight : COLORS.white,
@@ -948,10 +1172,14 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <ProviderLogo provider={opt.logo} size={40}/>
+                <ProviderLogo provider={opt.logo} size={40} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: COLORS.navy, margin: "0 0 2px" }}>{opt.type}</p>
-                  <p style={{ fontSize: 12, color: COLORS.gray500, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>via {opt.provider} {opt.surge ? "• ⚡ Surge" : ""}</p>
+                  <p style={{ fontSize: 12, color: COLORS.gray500, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>
+                    via {opt.provider}
+                    {opt.surge ? " • ⚡ Surge" : ""}
+                    {opt.source === 'nammayatri' ? " • 🟢 Open Network" : ""}
+                  </p>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <p style={{ fontSize: 20, fontWeight: 800, color: COLORS.navy, margin: 0 }}>₹{opt.price}</p>
@@ -961,14 +1189,16 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
               <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, height: 6, borderRadius: 3, background: COLORS.gray100, overflow: "hidden" }}>
                   <div style={{
-                    width: `${opt.score}%`, height: "100%", borderRadius: 3,
-                    background: opt.score >= 90 ? COLORS.green : opt.score >= 85 ? COLORS.blue : COLORS.orange,
+                    width: `${opt.movzzScore || opt.score || 85}%`, height: "100%", borderRadius: 3,
+                    background: (opt.movzzScore || opt.score || 85) >= 90 ? COLORS.green : (opt.movzzScore || opt.score || 85) >= 85 ? COLORS.blue : COLORS.orange,
                     transition: "width 1s ease 0.5s",
-                  }}/>
+                  }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <ShieldIcon size={12}/>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: opt.score >= 90 ? COLORS.green : opt.score >= 85 ? COLORS.blue : COLORS.orange, fontFamily: "'DM Sans', sans-serif" }}>{opt.score}</span>
+                  <ShieldIcon size={12} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: (opt.movzzScore || opt.score || 85) >= 90 ? COLORS.green : (opt.movzzScore || opt.score || 85) >= 85 ? COLORS.blue : COLORS.orange, fontFamily: "'DM Sans', sans-serif" }}>
+                    {opt.movzzScore || opt.score || 85}
+                  </span>
                 </div>
               </div>
               <div style={{ marginTop: 8, display: "flex", gap: 12 }}>
@@ -984,7 +1214,7 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
       {/* Bottom confirm */}
       <div style={{ padding: "12px 20px 32px", background: COLORS.white, borderTop: `1px solid ${COLORS.gray100}` }}>
         <button
-          onClick={() => selectedIdx !== null && onSelect(mode === "metro" ? options[selectedIdx] : tagged[selectedIdx])}
+          onClick={() => selectedIdx !== null && onSelect(rides[selectedIdx])}
           disabled={selectedIdx === null}
           className="movzz-btn"
           style={{
@@ -1006,12 +1236,69 @@ const ResultsScreen = ({ mode, pickup, drop, onBack, onSelect }) => {
 const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
   const [visible, setVisible] = useState(false);
   const [phase, setPhase] = useState("idle"); // idle -> confirming -> confirmed
+  const [bookingId, setBookingId] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
+  const stopPollingRef = useRef(null);
 
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
-  const handleConfirm = () => {
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (stopPollingRef.current) stopPollingRef.current();
+    };
+  }, []);
+
+  const handleConfirm = async () => {
     setPhase("confirming");
-    setTimeout(() => setPhase("confirmed"), 1800);
+    setBookingError(null);
+
+    try {
+      // If it's a Namma Yatri ride, use the selectRideEstimate API
+      if (ride.source === 'nammayatri' && ride.estimateId) {
+        const nyResult = await selectRideEstimate(ride.estimateId, 'Namma Yatri');
+        if (nyResult.success) {
+          setBookingId(nyResult.data?.bookingId);
+          setTimeout(() => setPhase("confirmed"), 2000);
+          return;
+        }
+      }
+
+      // Standard booking via MOVZZ backend
+      const result = await createBooking({
+        pickup: pickup?.name || "Unknown pickup",
+        dropoff: drop?.name || "Unknown drop",
+        pickupLat: pickup?.lat,
+        pickupLng: pickup?.lng,
+        dropoffLat: drop?.lat,
+        dropoffLng: drop?.lng,
+        fareEstimate: (ride.price || 0) * 100, // backend uses paise
+        tripType: 'HIGH_RELIABILITY',
+      });
+
+      if (result.success && result.data?.id) {
+        setBookingId(result.data.id);
+        // Poll for status updates
+        stopPollingRef.current = pollBookingStatus(result.data.id, (booking) => {
+          if (['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.state)) {
+            setPhase("confirmed");
+          } else if (['FAILED', 'CANCELLED'].includes(booking.state)) {
+            setPhase("idle");
+            setBookingError(`Booking ${booking.state.toLowerCase()}. Please try again.`);
+          }
+        });
+        // Also set confirmed after a timeout as fallback
+        setTimeout(() => setPhase("confirmed"), 3000);
+      } else {
+        // API returned error — fall back to simulated flow
+        console.warn('Booking API error, using simulated flow:', result.error);
+        setTimeout(() => setPhase("confirmed"), 1800);
+      }
+    } catch (err) {
+      // Backend not running — fall back to simulated flow
+      console.warn('Backend unreachable, using simulated flow:', err);
+      setTimeout(() => setPhase("confirmed"), 1800);
+    }
   };
 
   return (
@@ -1029,7 +1316,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
             width: 38, height: 38, borderRadius: 12, border: `1.5px solid ${COLORS.gray200}`,
             background: COLORS.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             opacity: phase === "confirmed" ? 0.5 : 1, transition: "opacity 0.3s ease",
-          }}><BackArrow size={18}/></button>
+          }}><BackArrow size={18} /></button>
           <h2 style={{
             fontSize: 18, fontWeight: 700, margin: 0,
             color: phase === "confirmed" ? COLORS.green : COLORS.navy,
@@ -1062,7 +1349,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               animation: phase === "confirmed" ? "movzz-checkpop 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both" : "none",
             }}>
-              <CheckCircle size={22} color={COLORS.green}/>
+              <CheckCircle size={22} color={COLORS.green} />
             </div>
             <div>
               <p style={{ fontSize: 14, fontWeight: 700, color: COLORS.green, margin: "0 0 2px" }}>Ride confirmed!</p>
@@ -1077,7 +1364,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
           background: COLORS.white, marginBottom: 16, transition: "border-color 0.5s ease",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            {ride.logo && <ProviderLogo provider={ride.logo} size={44}/>}
+            {ride.logo && <ProviderLogo provider={ride.logo} size={44} />}
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 17, fontWeight: 700, color: COLORS.navy, margin: "0 0 2px" }}>{ride.type || ride.line}</p>
               <p style={{ fontSize: 13, color: COLORS.gray500, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>{ride.provider ? `via ${ride.provider}` : `${ride.stations} stations`}</p>
@@ -1087,14 +1374,14 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
 
           <div style={{ padding: 14, borderRadius: 12, background: COLORS.gray50 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-              <MapPinDot color={COLORS.green} size={10}/>
+              <MapPinDot color={COLORS.green} size={10} />
               <div>
                 <p style={{ fontSize: 11, color: COLORS.gray400, margin: "0 0 2px", fontFamily: "'DM Sans', sans-serif" }}>PICKUP</p>
                 <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.navy, margin: 0 }}>{pickup?.name}</p>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <LocationPinIcon color={COLORS.blue} size={14}/>
+              <LocationPinIcon color={COLORS.blue} size={14} />
               <div>
                 <p style={{ fontSize: 11, color: COLORS.gray400, margin: "0 0 2px", fontFamily: "'DM Sans', sans-serif" }}>DROP</p>
                 <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.navy, margin: 0 }}>{drop?.name}</p>
@@ -1108,12 +1395,12 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
                 <p style={{ fontSize: 11, color: COLORS.gray400, margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>ETA</p>
                 <p style={{ fontSize: 16, fontWeight: 700, color: COLORS.navy, margin: 0 }}>{ride.eta} min</p>
               </div>
-              <div style={{ width: 1, background: COLORS.gray100 }}/>
+              <div style={{ width: 1, background: COLORS.gray100 }} />
               <div style={{ textAlign: "center", flex: 1 }}>
                 <p style={{ fontSize: 11, color: COLORS.gray400, margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Score</p>
                 <p style={{ fontSize: 16, fontWeight: 700, color: COLORS.green, margin: 0 }}>{ride.score}/100</p>
               </div>
-              <div style={{ width: 1, background: COLORS.gray100 }}/>
+              <div style={{ width: 1, background: COLORS.gray100 }} />
               <div style={{ textAlign: "center", flex: 1 }}>
                 <p style={{ fontSize: 11, color: COLORS.gray400, margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>Reliability</p>
                 <p style={{ fontSize: 16, fontWeight: 700, color: COLORS.blue, margin: 0 }}>{ride.reliability}%</p>
@@ -1127,7 +1414,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
           display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 12,
           background: COLORS.blueLight, marginBottom: 16,
         }}>
-          <ShieldIcon size={20}/>
+          <ShieldIcon size={20} />
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.navy, margin: "0 0 2px" }}>MOVZZ Reliability Guarantee</p>
             <p style={{ fontSize: 11, color: COLORS.gray600, margin: 0, fontFamily: "'DM Sans', sans-serif" }}>Auto-retry on failure • ₹100 credit if we can't deliver</p>
@@ -1143,7 +1430,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
             height: 54, borderRadius: 14, background: COLORS.greenLight,
             animation: "movzz-fadein 0.5s ease both",
           }}>
-            <div style={{ width: 10, height: 10, borderRadius: 5, background: COLORS.green, animation: "movzz-pulse 1.5s ease-in-out infinite" }}/>
+            <div style={{ width: 10, height: 10, borderRadius: 5, background: COLORS.green, animation: "movzz-pulse 1.5s ease-in-out infinite" }} />
             <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.green, fontFamily: "'DM Sans', sans-serif" }}>
               Driver arriving in {ride.eta} min
             </span>
@@ -1160,7 +1447,7 @@ const ConfirmScreen = ({ ride, pickup, drop, onBack }) => {
           }}>
             {phase === "confirming" ? (
               <>
-                <div style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid rgba(255,255,255,0.3)`, borderTopColor: COLORS.white, animation: "movzz-spin 0.8s linear infinite" }}/>
+                <div style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid rgba(255,255,255,0.3)`, borderTopColor: COLORS.white, animation: "movzz-spin 0.8s linear infinite" }} />
                 Confirming...
               </>
             ) : (
