@@ -172,7 +172,7 @@ export async function createBooking({
     dropoffLat,
     dropoffLng,
     fareEstimate,
-    tripType = 'HIGH_RELIABILITY',
+    tripType = 'HIGH_RELIABILTY',
 }) {
     return apiRequest('/bookings', {
         method: 'POST',
