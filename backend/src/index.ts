@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -15,8 +17,11 @@ import adminRoutes from './routes/admin.routes';
 import rideRoutes from './routes/ride.routes';
 import quotesRoutes from './routes/quotes.routes';
 import prisma from './config/database';
+import { setIo } from './config/socket';
+import { verifyToken } from './services/jwt.service';
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // ─── Security Middleware ────────────────────────────────
@@ -107,9 +112,43 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
     });
 });
 
+// ─── Socket.IO ──────────────────────────────────────────
+
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: corsOrigin,
+        methods: ['GET', 'POST'],
+    },
+});
+
+// JWT auth middleware — reject connections with invalid tokens
+io.use((socket, next) => {
+    try {
+        const token = socket.handshake.auth.token as string;
+        if (!token) return next(new Error('Authentication token required'));
+        const payload = verifyToken(token);
+        socket.data.userId = payload.userId;
+        next();
+    } catch {
+        next(new Error('Invalid or expired token'));
+    }
+});
+
+io.on('connection', (socket) => {
+    const userId: string = socket.data.userId;
+    socket.join(userId);
+    socket.on('disconnect', () => {
+        socket.leave(userId);
+    });
+});
+
+setIo(io);
+
 // ─── Start Server ───────────────────────────────────────
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log('');
     console.log('╔══════════════════════════════════════════╗');
     console.log('║         🚗 MOVZZ API SERVER 🚗          ║');
@@ -141,12 +180,14 @@ app.listen(PORT, () => {
 
 process.on('SIGINT', async () => {
     console.log('\n🛑 Shutting down gracefully...');
+    io.close();
     await prisma.$disconnect();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('\n🛑 Shutting down gracefully...');
+    io.close();
     await prisma.$disconnect();
     process.exit(0);
 });

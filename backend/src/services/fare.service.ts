@@ -165,6 +165,48 @@ const AUTO_TIERS: FareTier[] = [
 // Metro fare slabs and line data now live in metro.service.ts.
 // Imported above as _METRO_SLABS, _METRO_LINES for local use.
 
+// ─── Google Distance Matrix ─────────────────────────────
+
+/**
+ * Fetch real road distance from Google Distance Matrix API.
+ * Returns distance in km. Falls back to Haversine × ROAD_FACTOR
+ * if the API key is absent or the call fails.
+ */
+export async function getDistanceMatrix(
+    originLat: number,
+    originLng: number,
+    destLat: number,
+    destLng: number,
+): Promise<number> {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+        // No key configured — Haversine fallback runs later in estimateFares
+        return 0;
+    }
+
+    try {
+        const url =
+            `https://maps.googleapis.com/maps/api/distancematrix/json` +
+            `?origins=${originLat},${originLng}` +
+            `&destinations=${destLat},${destLng}` +
+            `&mode=driving&units=metric&key=${apiKey}`;
+
+        const res = await fetch(url);
+        const data = await res.json() as any;
+
+        const meters: number | undefined =
+            data?.rows?.[0]?.elements?.[0]?.distance?.value;
+
+        if (typeof meters === 'number' && meters > 0) {
+            return Math.round(meters / 10) / 100; // metres → km, 2 d.p.
+        }
+    } catch (err: any) {
+        console.warn('[Distance Matrix] API call failed, using Haversine fallback:', err.message);
+    }
+
+    return 0; // 0 signals "use Haversine fallback"
+}
+
 // ─── Distance Calculation ───────────────────────────────
 
 /**
@@ -371,12 +413,15 @@ export function estimateFares(
     pickupLng?: number | null,
     dropoffLat?: number | null,
     dropoffLng?: number | null,
-    surgeOverride?: number
+    surgeOverride?: number,
+    distanceKmOverride?: number   // Pre-calculated road distance from Distance Matrix
 ): FareEstimateResult {
-    // Calculate distance
+    // Calculate distance — prefer Distance Matrix result, then Haversine, then default
     let distanceKm: number;
 
-    if (pickupLat && pickupLng && dropoffLat && dropoffLng) {
+    if (distanceKmOverride && distanceKmOverride > 0) {
+        distanceKm = distanceKmOverride;
+    } else if (pickupLat && pickupLng && dropoffLat && dropoffLng) {
         distanceKm = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
     } else {
         // Default distance when no coordinates provided

@@ -19,6 +19,7 @@ import { findBestProvider, ScoredProvider } from './provider-scoring.service';
 import { attemptRecovery, issueCompensation } from './recovery.service';
 import redis from '../config/redis';
 import { estimateSingleFare } from './fare.service';
+import { getIo } from '../config/socket';
 
 // ─── Valid State Transitions ────────────────────────────
 
@@ -354,6 +355,18 @@ export async function transitionState(
         where: { id: bookingId },
         data: updateData,
     });
+
+    // Push state change to the client via Socket.IO (no-op if socket not initialised)
+    const io = getIo();
+    if (io) {
+        io.to(booking.userId).emit('booking:state_changed', {
+            id: bookingId,
+            state: newState,
+            previousState: booking.state,
+            metadata: metadata || booking.metadata,
+            updatedAt: new Date().toISOString(),
+        });
+    }
 
     await logBookingEvent(
         bookingId,

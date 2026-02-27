@@ -11,6 +11,7 @@ interface AuthState {
   error: string | null;
   sendOTP: (phone: string) => Promise<boolean>;
   verifyOTP: (otp: string) => Promise<boolean>;
+  loginWithOAuthToken: (token: string) => void;
   logout: () => void;
 }
 
@@ -70,6 +71,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: err.response?.data?.error || 'Invalid OTP', isLoading: false });
       return false;
     }
+  },
+
+  loginWithOAuthToken: (token) => {
+    localStorage.setItem('movzz_token', token);
+    set({ token, isAuthenticated: true });
   },
 
   logout: () => {
