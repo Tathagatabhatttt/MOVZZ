@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { getQuotesSchema } from '../validators/quotes.validator';
-import { estimateFares } from '../services/fare.service';
+import { estimateFares, getDistanceMatrix } from '../services/fare.service';
 import { findTopProviders } from '../services/provider-scoring.service';
 import redis from '../config/redis';
 
@@ -22,16 +22,27 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
         const quoteId = crypto.randomUUID();
         const quotes: any[] = [];
 
-        // 2. Get Fare Estimates
+        // 2. Get road distance from Google Distance Matrix (falls back to Haversine if no key)
+        let roadDistanceKm = 0;
+        if (data.pickupLat && data.pickupLng && data.dropoffLat && data.dropoffLng) {
+            roadDistanceKm = await getDistanceMatrix(
+                data.pickupLat, data.pickupLng,
+                data.dropoffLat, data.dropoffLng,
+            );
+        }
+
+        // 3. Get Fare Estimates
         const fareEstimate = estimateFares(
             data.transportMode,
             data.pickupLat,
             data.pickupLng,
             data.dropoffLat,
-            data.dropoffLng
+            data.dropoffLng,
+            undefined,          // surgeOverride — let engine calculate
+            roadDistanceKm || undefined,
         );
 
-        // 3. Handle METRO Mode
+        // 4. Handle METRO Mode
         if (data.transportMode === 'METRO') {
             if (fareEstimate.metroFares) {
                 fareEstimate.metroFares.forEach((mFare, index) => {
@@ -50,7 +61,7 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
                 });
             }
         }
-        // 4. Handle CAB, BIKE, AUTO
+        // 5. Handle CAB, BIKE, AUTO
         else {
             const providers = await findTopProviders(5, [], 'STANDARD');
 
@@ -87,7 +98,7 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
             });
         }
 
-        // 5. Structure Response
+        // 6. Structure Response
         const responseData = {
             quoteId,
             quotes,
@@ -98,7 +109,7 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
             },
         };
 
-        // 6. Cache the full session response under the session quoteId.
+        // 7. Cache the full session response under the session quoteId.
         //    Used for auditing and potential replay.
         await redis.set(`quote:${quoteId}`, JSON.stringify(responseData), 300);
 

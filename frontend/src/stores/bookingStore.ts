@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { io } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import apiClient from '../api/client';
 
 interface Quote {
@@ -22,16 +24,23 @@ interface Quote {
 interface BookingState {
   quotes: Quote[];
   quoteId: string | null;
-  currentBooking: any | null; // NEW: Store the active booking
+  currentBooking: any | null;
   isLoading: boolean;
   error: string | null;
-  fetchQuotes: (pickup: string, dropoff: string, transportMode: string) => Promise<void>;
-  
-  // MODIFIED: Added quoteId
-  createBooking: (pickup: string, dropoff: string, quoteId: string) => Promise<boolean>; 
-  
-  // NEW: Polling action
-  pollStatus: (bookingId: string) => Promise<void>; 
+  socket: Socket | null;
+  fetchQuotes: (
+    pickup: string, dropoff: string, transportMode: string,
+    pickupLat?: number, pickupLng?: number,
+    dropoffLat?: number, dropoffLng?: number,
+  ) => Promise<void>;
+  createBooking: (
+    pickup: string, dropoff: string, quoteId: string,
+    pickupLat?: number, pickupLng?: number,
+    dropoffLat?: number, dropoffLng?: number,
+  ) => Promise<boolean>;
+  pollStatus: (bookingId: string) => Promise<void>;
+  connectSocket: (token: string) => void;
+  disconnectSocket: () => void;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -40,20 +49,18 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   currentBooking: null,
   isLoading: false,
   error: null,
+  socket: null,
 
-  fetchQuotes: async (pickup, dropoff, transportMode) => {
+  fetchQuotes: async (pickup, dropoff, transportMode, pickupLat, pickupLng, dropoffLat, dropoffLng) => {
     set({ isLoading: true, error: null, quotes: [] });
     try {
-      const mockCoords = {
-        pickupLat: 12.9941, pickupLng: 80.1709,
-        dropoffLat: 13.0418, dropoffLng: 80.2341
-      };
-
       const response = await apiClient.post('/quotes', {
         pickup,
         dropoff,
         transportMode: transportMode.toUpperCase(),
-        ...mockCoords
+        ...(pickupLat && pickupLng && dropoffLat && dropoffLng
+          ? { pickupLat, pickupLng, dropoffLat, dropoffLng }
+          : {}),
       });
 
       if (response.data.success) {
@@ -64,25 +71,21 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  // NEW METHOD: Actually create the booking in the database
-  createBooking: async (pickup, dropoff, quoteId) => {
+  createBooking: async (pickup, dropoff, quoteId, pickupLat, pickupLng, dropoffLat, dropoffLng) => {
     set({ isLoading: true, error: null });
     try {
-      const mockCoords = {
-        pickupLat: 12.9941, pickupLng: 80.1709,
-        dropoffLat: 13.0418, dropoffLng: 80.2341
-      };
-
       const response = await apiClient.post('/bookings', {
         pickup,
         dropoff,
         quoteId,
         tripType: 'HIGH_RELIABILITY',
-        ...mockCoords
+        ...(pickupLat && pickupLng && dropoffLat && dropoffLng
+          ? { pickupLat, pickupLng, dropoffLat, dropoffLng }
+          : {}),
       });
 
       if (response.data.success) {
-        set({ isLoading: false, currentBooking: response.data.data});
+        set({ isLoading: false, currentBooking: response.data.data });
         return true;
       }
       return false;
@@ -91,14 +94,40 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       return false;
     }
   },
+
   pollStatus: async (bookingId) => {
     try {
       const response = await apiClient.get(`/bookings/${bookingId}`);
       if (response.data.success) {
-        set({currentBooking: response.data.data });
+        set({ currentBooking: response.data.data });
       }
     } catch (err: any) {
       console.error("Failed to fetch booking status", err);
     }
-  }
+  },
+
+  connectSocket: (token) => {
+    const existing = get().socket;
+    if (existing) existing.disconnect();
+
+    const socket = io('http://localhost:3000', { auth: { token } });
+
+    socket.on('booking:state_changed', (data) => {
+      set({ currentBooking: data });
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Socket] Connection error:', err.message);
+    });
+
+    set({ socket });
+  },
+
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      set({ socket: null });
+    }
+  },
 }));

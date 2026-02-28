@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import { useBookingStore } from './stores/bookingStore';
 import { useAuthStore } from './stores/authStore';
+
+// Must be a stable reference — defined outside component to avoid re-renders
+const MAPS_LIBRARIES = ['places'];
 
 const transportModes = [
   { id: "cab", label: "Cab", icon: CabIcon, desc: "Doorstep comfort and AC ride" },
@@ -9,8 +13,18 @@ const transportModes = [
   { id: "metro", label: "Metro", icon: MetroIcon, desc: "Most predictable commute window" }
 ];
 
-const destinationChips = ["Chennai Airport T1", "T Nagar", "OMR Tech Park", "Guindy"];
-const sourceChips = ["Pacifica Aurum 1 Block-B5", "Anna Nagar", "Velachery"];
+// Chips now carry real Chennai coordinates
+const destinationChips = [
+  { label: "Chennai Airport T1", lat: 12.9941, lng: 80.1709 },
+  { label: "T Nagar",            lat: 13.0418, lng: 80.2341 },
+  { label: "OMR Tech Park",      lat: 12.9010, lng: 80.2279 },
+  { label: "Guindy",             lat: 13.0067, lng: 80.2206 },
+];
+const sourceChips = [
+  { label: "Pacifica Aurum 1 Block-B5", lat: 13.0623, lng: 80.2100 },
+  { label: "Anna Nagar",                lat: 13.0878, lng: 80.2101 },
+  { label: "Velachery",                 lat: 12.9815, lng: 80.2180 },
+];
 const laneLabels = ["Cab", "Bike", "Auto", "Metro", "Reliable", "Parallel", "Safe ETA"];
 
 const screens = ["landing", "auth", "transport", "destination", "results"];
@@ -36,6 +50,8 @@ function App() {
   const [transport, setTransport] = useState("cab");
   const [source, setSource] = useState("Pacifica Aurum 1 Block-B5");
   const [destination, setDestination] = useState("");
+  const [sourceCoords, setSourceCoords] = useState({ lat: 13.0623, lng: 80.2100 });
+  const [destCoords, setDestCoords] = useState(null);
   const [selectedRide, setSelectedRide] = useState(null);
   const [booked, setBooked] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -45,9 +61,16 @@ function App() {
   // Previously declared at module scope, which violates the Rules of Hooks
   // and throws in strict mode.
   const isProcessing = useRef(false);
+  const pickupACRef = useRef(null);
+  const dropoffACRef = useRef(null);
 
-  const { otpSent, phone, isAuthenticated, isLoading: isAuthLoading, error: authError, sendOTP, verifyOTP } = useAuthStore();
-  const { quotes, isLoading, error, fetchQuotes, createBooking, currentBooking, pollStatus } = useBookingStore();
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    libraries: MAPS_LIBRARIES,
+  });
+
+  const { otpSent, phone, isAuthenticated, isLoading: isAuthLoading, error: authError, sendOTP, verifyOTP, loginWithOAuthToken } = useAuthStore();
+  const { quotes, isLoading, error, fetchQuotes, createBooking, currentBooking, connectSocket, disconnectSocket } = useBookingStore();
 
   useEffect(() => {
     if (quotes && quotes.length > 0) {
@@ -65,18 +88,27 @@ function App() {
     }
   }, [isAuthenticated, screen]);
 
+  // Handle OAuth redirect — backend sends ?token=<jwt> after Google consent
   useEffect(() => {
-    let intervalId;
-    if (booked && currentBooking?.id) {
-      const isTerminalState = ['COMPLETED', 'FAILED', 'CANCELLED'].includes(currentBooking.state);
-      if (!isTerminalState) {
-        intervalId = setInterval(() => {
-          pollStatus(currentBooking.id);
-        }, 5000);
-      }
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get('token');
+    const authError = params.get('auth_error');
+    if (oauthToken) {
+      loginWithOAuthToken(oauthToken);
+      connectSocket(oauthToken);
+      window.history.replaceState({}, '', window.location.pathname);
+      moveTo('transport');
+    } else if (authError) {
+      window.history.replaceState({}, '', window.location.pathname);
     }
-    return () => clearInterval(intervalId);
-  }, [booked, currentBooking, pollStatus]);
+  }, []);
+
+  // Connect socket on mount if already authenticated (e.g. page reload with stored token)
+  useEffect(() => {
+    const token = localStorage.getItem('movzz_token');
+    if (token) connectSocket(token);
+    return () => disconnectSocket();
+  }, []);
 
   function moveTo(next) {
     if (!screens.includes(next)) return;
@@ -86,16 +118,40 @@ function App() {
     setScreen(next);
   }
 
+  function onPickupPlaceChanged() {
+    const place = pickupACRef.current?.getPlace();
+    if (place?.geometry?.location) {
+      setSource(place.formatted_address || place.name || source);
+      setSourceCoords({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+    }
+  }
+
+  function onDropoffPlaceChanged() {
+    const place = dropoffACRef.current?.getPlace();
+    if (place?.geometry?.location) {
+      setDestination(place.formatted_address || place.name || destination);
+      setDestCoords({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
+    }
+  }
+
   async function findRides() {
     if (!destination.trim()) return;
     setBooked(false);
     setScreen("results");
-    await fetchQuotes(source, destination, transport);
+    await fetchQuotes(
+      source, destination, transport,
+      sourceCoords?.lat, sourceCoords?.lng,
+      destCoords?.lat, destCoords?.lng,
+    );
   }
 
   async function bookRide() {
     if (!selectedRide) return;
-    const success = await createBooking(source, destination, selectedRide.id);
+    const success = await createBooking(
+      source, destination, selectedRide.id,
+      sourceCoords?.lat, sourceCoords?.lng,
+      destCoords?.lat, destCoords?.lng,
+    );
     if (success) {
       setBooked(true);
     }
@@ -113,6 +169,8 @@ function App() {
       const success = await verifyOTP(otpCode);
       if (success) {
         setOtpCode("");
+        const token = localStorage.getItem('movzz_token');
+        if (token) connectSocket(token);
         moveTo("transport");
       }
     } finally {
@@ -211,6 +269,14 @@ function App() {
                     {isAuthLoading ? "Sending..." : "Send OTP"}
                   </button>
                 </div>
+                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--ink-500)', margin: '0.75rem 0' }}>or</p>
+                <button
+                  className="btn secondary"
+                  style={{ width: '100%' }}
+                  onClick={() => { window.location.href = 'http://localhost:3000/api/v1/auth/google'; }}
+                >
+                  Continue with Google
+                </button>
               </>
             ) : (
               <>
@@ -243,6 +309,7 @@ function App() {
               </>
             )}
           </div>
+
         </section>
 
         {/* TRANSPORT */}
@@ -289,33 +356,75 @@ function App() {
             <div className="route-fields">
               <label className="field compact">
                 <span>Pickup</span>
-                <input
-                  type="text"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  placeholder="Current location"
-                />
+                {isLoaded ? (
+                  <Autocomplete
+                    onLoad={(ac) => { pickupACRef.current = ac; }}
+                    onPlaceChanged={onPickupPlaceChanged}
+                    options={{ componentRestrictions: { country: 'in' } }}
+                  >
+                    <input
+                      type="text"
+                      value={source}
+                      onChange={(e) => { setSource(e.target.value); setSourceCoords(null); }}
+                      placeholder="Current location"
+                    />
+                  </Autocomplete>
+                ) : (
+                  <input
+                    type="text"
+                    value={source}
+                    onChange={(e) => setSource(e.target.value)}
+                    placeholder="Current location"
+                  />
+                )}
               </label>
               <label className="field compact">
                 <span>Drop location</span>
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Terminal 1, Chennai Airport"
-                />
+                {isLoaded ? (
+                  <Autocomplete
+                    onLoad={(ac) => { dropoffACRef.current = ac; }}
+                    onPlaceChanged={onDropoffPlaceChanged}
+                    options={{ componentRestrictions: { country: 'in' } }}
+                  >
+                    <input
+                      type="text"
+                      value={destination}
+                      onChange={(e) => { setDestination(e.target.value); setDestCoords(null); }}
+                      placeholder="Terminal 1, Chennai Airport"
+                    />
+                  </Autocomplete>
+                ) : (
+                  <input
+                    type="text"
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="Terminal 1, Chennai Airport"
+                  />
+                )}
               </label>
             </div>
           </div>
 
           <div className="chips">
             {sourceChips.map((chip) => (
-              <button key={chip} className="chip" onClick={() => setSource(chip)}>{chip}</button>
+              <button
+                key={chip.label}
+                className="chip"
+                onClick={() => { setSource(chip.label); setSourceCoords({ lat: chip.lat, lng: chip.lng }); }}
+              >
+                {chip.label}
+              </button>
             ))}
           </div>
           <div className="chips">
             {destinationChips.map((chip) => (
-              <button key={chip} className="chip" onClick={() => setDestination(chip)}>{chip}</button>
+              <button
+                key={chip.label}
+                className="chip"
+                onClick={() => { setDestination(chip.label); setDestCoords({ lat: chip.lat, lng: chip.lng }); }}
+              >
+                {chip.label}
+              </button>
             ))}
           </div>
 
