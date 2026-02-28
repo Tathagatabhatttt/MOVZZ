@@ -60,7 +60,6 @@ function App() {
 
   // FIX 2: useRef calls moved inside the component where hooks belong.
   // Previously declared at module scope, which violates the Rules of Hooks
-  // and throws in strict mode.
   const [sourceSuggestions, setSourceSuggestions] = useState([]);
   const [destSuggestions, setDestSuggestions] = useState([]);
   const [mapViewState, setMapViewState] = useState({ longitude: 80.2707, latitude: 13.0827, zoom: 11 });
