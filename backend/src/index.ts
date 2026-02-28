@@ -146,6 +146,13 @@ io.on('connection', (socket) => {
 
 setIo(io);
 
+// ─── Background Workers ──────────────────────────────────
+// Workers call getIo() lazily at job-processing time, so they
+// always see the initialised io instance regardless of import order.
+import './workers/booking-timeout.worker';
+import './workers/recovery.worker';
+import './workers/sms.worker';
+
 // ─── Start Server ───────────────────────────────────────
 
 httpServer.listen(PORT, () => {

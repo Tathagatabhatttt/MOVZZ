@@ -4,6 +4,7 @@ import redis from '../config/redis';
 import { generateToken } from '../services/jwt.service';
 import { generateOTP, generateReferralCode } from '../utils/otp';
 import { normalizePhone } from '../utils/phone';
+import { smsQueue } from '../config/queues';
 
 /**
  * ╔════════════════════════════════════════════════════════════════╗
@@ -26,7 +27,12 @@ export async function sendOTP(req: Request, res: Response): Promise<void> {
 
     await redis.set(`otp:${key}`, otp, 300);
 
-    console.log(`[MOVZZ AUTH] 🔑 OTP for ${key}: ${otp} (MOCK)`);
+    // Enqueue SMS — returns immediately without blocking the HTTP response.
+    // The worker handles delivery (mock console.log in dev, Twilio in prod)
+    // with 3 automatic retries via exponential backoff.
+    await smsQueue.add(`otp-${key}`, { phone: key, otp });
+
+    console.log(`[MOVZZ AUTH] OTP queued for ${key} (MOCK)`);
 
     res.json({
       success: true,

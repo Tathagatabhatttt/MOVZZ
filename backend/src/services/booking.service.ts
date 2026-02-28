@@ -16,10 +16,10 @@
 import { BookingState, TripType } from '@prisma/client';
 import prisma from '../config/database';
 import { findBestProvider, ScoredProvider } from './provider-scoring.service';
-import { attemptRecovery, issueCompensation } from './recovery.service';
 import redis from '../config/redis';
 import { estimateSingleFare } from './fare.service';
 import { getIo } from '../config/socket';
+import { bookingTimeoutQueue, recoveryQueue } from '../config/queues';
 
 // ─── Valid State Transitions ────────────────────────────
 
@@ -135,6 +135,14 @@ export async function createBooking(params: {
     });
 
     await logBookingEvent(booking.id, 'CREATED', `Booking created: ${params.pickup} → ${params.dropoff}`);
+
+    // Enqueue a timeout job — fires in 5 minutes if booking is still SEARCHING.
+    // The worker auto-transitions to FAILED and issues compensation.
+    await bookingTimeoutQueue.add(
+        `timeout-${booking.id}`,
+        { bookingId: booking.id },
+        { delay: 5 * 60 * 1000 },
+    );
 
     if (cachedProviderId) {
         // Fast path: we already know which provider the user selected.
@@ -269,13 +277,11 @@ async function assignProvider(
     if (!bestProvider) {
         await logBookingEvent(bookingId, 'NO_PROVIDER_FOUND', 'No eligible provider found');
 
-        const recovered = await attemptRecovery(bookingId);
-
-        if (!recovered) {
-            await transitionState(bookingId, 'FAILED');
-            await logBookingEvent(bookingId, 'FAILED', 'No provider available after all attempts');
-            await issueCompensation(booking.userId, booking.userPhone, bookingId);
-        }
+        // Queue async recovery with a 2-second delay before the first retry.
+        // The recovery worker (recovery.worker.ts) calls attemptRecovery() which
+        // handles up to 3 retries, escalates to MANUAL_ESCALATION on exhaustion,
+        // and issues compensation — so nothing else is needed here.
+        await recoveryQueue.add(`recovery-${bookingId}`, { bookingId }, { delay: 2000 });
         return;
     }
 
