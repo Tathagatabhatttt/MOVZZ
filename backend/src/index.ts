@@ -184,15 +184,25 @@ import './workers/recovery.worker';
 import './workers/sms.worker';
 import './workers/nightly-aggregation.worker';
 import './workers/ml-data.worker';
+import './workers/demand-forecast.worker';
 
 // ─── CRON: Nightly Aggregation ───────────────────────────
 // Schedule midnight job. BullMQ CRON uses standard cron syntax.
-import { nightlyAggregationQueue } from './config/queues';
+import { nightlyAggregationQueue, demandForecastQueue } from './config/queues';
 nightlyAggregationQueue.add(
     'nightly-run',
     {},
     { repeat: { pattern: '0 0 * * *' }, jobId: 'nightly-aggregation-cron' }
 ).catch(() => {}); // silently ignore if already scheduled
+
+// ─── CRON: Demand Forecast (10 PM) ───────────────────────
+// Generate 24h zone×hour forecasts before midnight so they are
+// ready when users request quotes the next morning.
+demandForecastQueue.add(
+    'nightly-forecast',
+    {},
+    { repeat: { pattern: '0 22 * * *' }, jobId: 'demand-forecast-cron' }
+).catch(() => {});
 
 // ─── Start Server ───────────────────────────────────────
 

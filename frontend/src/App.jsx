@@ -75,6 +75,7 @@ function App() {
   // ── Profile photo ────────────────────────────────────────
   const [photoUrl, setPhotoUrl] = useState(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [expandedBreakdown, setExpandedBreakdown] = useState(null);
   const photoInputRef = useRef(null);
   const API_BASE = 'http://localhost:3000/api/v1';
 
@@ -769,6 +770,62 @@ function App() {
                         }}>
                           MOVZZ {item.score}/100
                         </span>
+                      </div>
+                    )}
+
+                    {/* Why this price? breakdown */}
+                    {item.breakdown?.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            color: 'var(--ink-500)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedBreakdown(expandedBreakdown === item.id ? null : item.id);
+                          }}
+                        >
+                          <span style={{ fontSize: 13 }}>ⓘ</span> Why this price?
+                          <span style={{ fontSize: 10, marginLeft: 2 }}>{expandedBreakdown === item.id ? '▲' : '▼'}</span>
+                        </button>
+
+                        {expandedBreakdown === item.id && (
+                          <div style={{
+                            marginTop: 6,
+                            padding: '8px 10px',
+                            background: 'var(--surface-2, #f9fafb)',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            color: 'var(--ink-700)',
+                          }}>
+                            {item.baseFare != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: 'var(--ink-500)' }}>
+                                <span>Base fare</span>
+                                <span>₹{item.baseFare}</span>
+                              </div>
+                            )}
+                            {item.breakdown.map((b, i) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span>{b.label}</span>
+                                <span style={{ color: b.amountRupees > 0 ? '#f59e0b' : '#22c55e', fontWeight: 600 }}>
+                                  {b.amountRupees > 0 ? `+₹${b.amountRupees}` : `-₹${Math.abs(b.amountRupees)}`}
+                                </span>
+                              </div>
+                            ))}
+                            <div style={{ borderTop: '1px solid var(--ink-200, #e5e7eb)', paddingTop: 4, marginTop: 4, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                              <span>Total</span>
+                              <span>₹{item.price}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </button>

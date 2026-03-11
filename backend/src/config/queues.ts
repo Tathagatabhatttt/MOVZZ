@@ -11,6 +11,7 @@
  *   sms-dispatch         — retryable SMS/OTP delivery
  *   nightly-aggregation  — CRON: aggregate provider metrics at midnight
  *   ml-data-collection   — collect training data after booking outcome
+ *   demand-forecast      — CRON: generate 24h demand forecasts at 10 PM
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -71,6 +72,18 @@ export const mlDataQueue = new Queue('ml-data-collection', {
         backoff: { type: 'exponential', delay: 1000 },
         removeOnComplete: true,
         removeOnFail: 200,
+    },
+});
+
+// ─── Demand Forecast Queue ───────────────────────────────
+// CRON job fires at 10 PM every day, generating 24h zone×hour forecasts
+// and storing them in the DemandForecast table. Also sends driver nudges
+// to shortage zones.
+export const demandForecastQueue = new Queue('demand-forecast', {
+    connection,
+    defaultJobOptions: {
+        removeOnComplete: 10,
+        removeOnFail: 50,
     },
 });
 

@@ -34,6 +34,10 @@ export interface RideQuote {
     source: 'simulated' | 'nammayatri';
     tag: QuoteTag | null;   // 'Best Match', 'Cheapest', etc.
     why: string;            // Human-readable scoring rationale
+    // AI Week 3 — pricing transparency
+    baseFare?: number;                      // ₹ pre-multiplier
+    breakdown?: Array<{ factor: string; label: string; multiplier: number; amountRupees: number }>;
+    explanation?: string;                   // e.g. "Price includes evening rush"
 }
 
 export interface MetroQuote {
@@ -71,6 +75,34 @@ export interface QuotesResult {
         providers: Record<string, boolean>;
         generatedAt: string;
     };
+}
+
+import { getDynamicMultiplier, PricingContext } from './fare.service';
+import { getDemandMultiplierForZone, DemandLevel } from './ai/demand-forecaster.service';
+
+// ─── Zone Detection (mirrors context-builder.service.ts) ─────────────────────
+
+const AIRPORT_LAT = 12.9941;
+const AIRPORT_LNG = 80.1709;
+
+function haversineRaw(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function detectZone(lat: number, lng: number): string {
+    if (haversineRaw(lat, lng, AIRPORT_LAT, AIRPORT_LNG) <= 5) return 'AIRPORT';
+    if (lng > 80.22 && lat >= 12.80 && lat <= 13.0)            return 'IT_CORRIDOR';
+    if (lat >= 13.05 && lat <= 13.08 && lng >= 80.25 && lng <= 80.28) return 'CENTRAL';
+    if (lat > 13.08)  return 'NORTH_CHENNAI';
+    if (lat < 12.90)  return 'SOUTH_CHENNAI';
+    return 'SUBURBS';
 }
 
 // ─── Mode-Specific Fare Configuration ───────────────────
@@ -317,19 +349,33 @@ function generateRideQuotes(
     dropoffLat: number,
     dropoffLng: number,
     mode: 'cab' | 'bike' | 'auto',
+    pricingCtx?: PricingContext,
 ): RideQuote[] {
-    const distKm = haversineDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+    const distKm = haversineDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng) * ROAD_FACTOR;
     const fareConfig = FARE_CONFIGS[mode];
     const templates = PROVIDER_TEMPLATES[mode] || [];
     const basePrice = Math.max(fareConfig.baseFare, Math.round(distKm * fareConfig.perKmRate));
+
+    // Dynamic pricing multiplier (AI Week 3)
+    const now = new Date();
+    const ctx: PricingContext = pricingCtx ?? {
+        hour: now.getHours(),
+        pickupLat,
+        pickupLng,
+        weather: 'CLEAR',
+        traffic: 'MODERATE',
+        demandLevel: 'NORMAL',
+    };
+    const dynamicPricing = getDynamicMultiplier(ctx);
 
     // Add slight randomness for variance between providers
     const distVariance = () => 0.92 + Math.random() * 0.16;
 
     return templates.map((tmpl, idx) => {
-        const price = Math.round(basePrice * tmpl.priceMultiplier * distVariance());
+        const priceBeforeMultiplier = Math.round(basePrice * tmpl.priceMultiplier * distVariance());
+        const price = Math.round(priceBeforeMultiplier * dynamicPricing.finalMultiplier);
         const eta = Math.round(tmpl.etaMin + Math.random() * (tmpl.etaMax - tmpl.etaMin));
-        const surge = Math.random() < tmpl.surgeChance;
+        const surge = dynamicPricing.finalMultiplier > 1.0 || Math.random() < tmpl.surgeChance;
         const reliability = tmpl.reliability + Math.round((Math.random() - 0.5) * 4);
 
         const score = calculateMovzzScore({
@@ -338,6 +384,14 @@ function generateRideQuotes(
             eta,
             baseScore: tmpl.reliability,
         });
+
+        // Build per-quote breakdown with rupee amounts
+        const breakdown = dynamicPricing.breakdown.map(item => ({
+            factor: item.factor,
+            label: item.label,
+            multiplier: item.multiplier,
+            amountRupees: Math.round(priceBeforeMultiplier * (item.multiplier - 1.0)),
+        }));
 
         return {
             id: `quote_${mode}_${tmpl.provider.toLowerCase()}_${idx}_${Date.now()}`,
@@ -353,6 +407,9 @@ function generateRideQuotes(
             source: 'simulated' as const,
             tag: null,
             why: tmpl.why,
+            baseFare: priceBeforeMultiplier,
+            breakdown,
+            explanation: dynamicPricing.explanation,
         };
     });
 }
@@ -457,16 +514,37 @@ export async function getQuotes(params: {
     } else {
         // ─── CAB / BIKE / AUTO quotes ───────────────────
 
-        // 1. Generate simulated provider quotes
+        // 1. Build pricing context with demand forecast (AI Week 3)
+        //    getDemandMultiplierForZone gracefully returns 1.0 if Redis/DB unavailable
+        const now = new Date();
+        const zone = detectZone(pickupLat, pickupLng);
+        let demandLevel: DemandLevel = 'NORMAL';
+        try {
+            const multiplier = await getDemandMultiplierForZone(zone, now.getHours());
+            if (multiplier >= 1.15) demandLevel = 'VERY_HIGH';
+            else if (multiplier >= 1.08) demandLevel = 'HIGH';
+        } catch { /* graceful fallback */ }
+
+        const pricingCtx: PricingContext = {
+            hour: now.getHours(),
+            pickupLat,
+            pickupLng,
+            zone,
+            weather: 'CLEAR',    // real weather API slot-in point (Week 3+)
+            traffic: 'MODERATE', // real traffic API slot-in point (Week 3+)
+            demandLevel,
+        };
+
+        // 2. Generate simulated provider quotes with dynamic pricing
         const simulatedQuotes = generateRideQuotes(
-            pickupLat, pickupLng, dropoffLat, dropoffLng, transportMode
+            pickupLat, pickupLng, dropoffLat, dropoffLng, transportMode, pricingCtx
         );
         allQuotes.push(...simulatedQuotes);
         providers['uber'] = true;
         providers['ola'] = true;
         providers['rapido'] = true;
 
-        // 2. Namma Yatri integration removed
+        // 3. Namma Yatri integration removed
     }
 
     // ─── Sort by MOVZZ score (descending) ───────────────

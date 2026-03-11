@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { getQuotesSchema } from '../validators/quotes.validator';
-import { estimateFares, getDistanceMatrix } from '../services/fare.service';
+import { estimateFares, getDistanceMatrix, getDynamicMultiplier, PricingContext } from '../services/fare.service';
 import { findTopProviders } from '../services/provider-scoring.service';
 import redis from '../config/redis';
 
@@ -73,6 +73,17 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
                 return;
             }
 
+            // AI Week 3 — build pricing context for breakdown transparency
+            const pricingCtx: PricingContext = {
+                hour: new Date().getHours(),
+                pickupLat: data.pickupLat ?? 0,
+                pickupLng: data.pickupLng ?? 0,
+                weather: 'CLEAR',
+                traffic: 'MODERATE',
+                demandLevel: 'NORMAL',
+            };
+            const dynamicPricing = getDynamicMultiplier(pricingCtx);
+
             fareEstimate.fares.forEach((fareTier, index) => {
                 const provider = providers[index % providers.length];
 
@@ -80,6 +91,19 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
                 if (index === 0) tag = 'CHEAPEST';
                 if (index === fareEstimate.fares.length - 1 && fareEstimate.fares.length > 1) tag = 'PREMIUM';
                 if (index === 0 && provider.score >= 90) tag = 'BEST';
+
+                // Pre-multiplier base fare (rupees)
+                const baseFare = fareTier.surgeMultiplier > 1.0
+                    ? Math.round(fareTier.totalFareRupees / fareTier.surgeMultiplier)
+                    : fareTier.totalFareRupees;
+
+                // Build breakdown with rupee amounts
+                const breakdown = dynamicPricing.breakdown.map(item => ({
+                    factor: item.factor,
+                    label: item.label,
+                    multiplier: item.multiplier,
+                    amountRupees: Math.round(baseFare * (item.multiplier - 1.0)),
+                }));
 
                 quotes.push({
                     id: crypto.randomUUID(),
@@ -94,6 +118,9 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
                     tag,
                     surge: fareTier.surgeMultiplier > 1.0,
                     farePaise: fareTier.totalFare,
+                    baseFare,
+                    breakdown,
+                    explanation: dynamicPricing.explanation,
                 });
             });
         }

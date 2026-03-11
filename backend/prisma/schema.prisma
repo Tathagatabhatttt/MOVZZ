@@ -297,3 +297,20 @@ model MLTrainingData {
   @@index([transportMode])
   @@index([createdAt])
 }
+
+// AI Week 3 — demand forecasts per zone/hour (populated nightly by demand-forecast worker)
+model DemandForecast {
+  id               String   @id @default(cuid())
+  zone             String
+  forecastHour     DateTime
+  predictedRides   Float
+  confidenceLow    Float
+  confidenceHigh   Float
+  actualRides      Int?
+  forecastAccuracy Float?
+  createdAt        DateTime @default(now())
+
+  @@unique([zone, forecastHour])
+  @@index([zone])
+  @@index([forecastHour])
+}

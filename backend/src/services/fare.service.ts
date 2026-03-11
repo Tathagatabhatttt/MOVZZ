@@ -370,6 +370,129 @@ export function getSurgeMultiplier(
     return Math.round(surge * 100) / 100;
 }
 
+// ─── Dynamic Pricing (AI Week 3) ────────────────────────
+
+export type WeatherCondition = 'CLEAR' | 'RAIN' | 'HEAVY_RAIN' | 'STORM';
+export type TrafficCondition = 'CLEAR' | 'MODERATE' | 'HEAVY' | 'JAM';
+export type DemandLevel      = 'LOW' | 'NORMAL' | 'HIGH' | 'VERY_HIGH';
+
+export interface PricingContext {
+    hour: number;
+    pickupLat: number;
+    pickupLng: number;
+    zone?: string;
+    weather?: WeatherCondition;
+    traffic?: TrafficCondition;
+    demandLevel?: DemandLevel;
+}
+
+export interface PricingBreakdownItem {
+    factor: string;     // 'base_surge' | 'demand' | 'weather' | 'traffic'
+    label: string;      // Human-readable: 'Evening Rush', 'High Demand', 'Rain'
+    multiplier: number; // e.g. 1.08
+}
+
+export interface DynamicPricingResult {
+    finalMultiplier: number;            // Capped at 1.2
+    breakdown: PricingBreakdownItem[];  // Only non-neutral factors
+    explanation: string;                // e.g. "Price includes evening rush and rain surcharge"
+}
+
+/**
+ * getDynamicMultiplier — AI Week 3 pricing engine.
+ *
+ * Combines time-of-day surge, demand forecast, weather and traffic into a
+ * single multiplier. Hard cap at ×1.2 — MOVZZ never charges more than 20%
+ * above base fare regardless of conditions.
+ *
+ * Metro is always ×1.0 (fixed government fares).
+ */
+export function getDynamicMultiplier(ctx: PricingContext): DynamicPricingResult {
+    const breakdown: PricingBreakdownItem[] = [];
+
+    // 1. Time-based surge (existing logic, reused)
+    const baseSurge = getSurgeMultiplier('CAB', ctx.hour, false);
+    if (baseSurge > 1.0) {
+        let label = 'Peak Hour';
+        if (ctx.hour >= 7 && ctx.hour <= 9)   label = 'Morning Rush';
+        if (ctx.hour >= 17 && ctx.hour <= 20) label = 'Evening Rush';
+        if (ctx.hour >= 23 || ctx.hour <= 5)  label = 'Late Night';
+        breakdown.push({ factor: 'base_surge', label, multiplier: baseSurge });
+    }
+
+    // 2. Weather multiplier
+    const weatherMultipliers: Record<WeatherCondition, number> = {
+        CLEAR:      1.0,
+        RAIN:       1.08,
+        HEAVY_RAIN: 1.15,
+        STORM:      1.20,
+    };
+    const weatherMultiplier = weatherMultipliers[ctx.weather ?? 'CLEAR'];
+    if (weatherMultiplier > 1.0) {
+        const weatherLabels: Record<WeatherCondition, string> = {
+            CLEAR:      'Clear',
+            RAIN:       'Rain',
+            HEAVY_RAIN: 'Heavy Rain',
+            STORM:      'Storm',
+        };
+        breakdown.push({
+            factor: 'weather',
+            label: weatherLabels[ctx.weather!],
+            multiplier: weatherMultiplier,
+        });
+    }
+
+    // 3. Traffic multiplier
+    const trafficMultipliers: Record<TrafficCondition, number> = {
+        CLEAR:    0.95,
+        MODERATE: 1.0,
+        HEAVY:    1.08,
+        JAM:      1.12,
+    };
+    const trafficMultiplier = trafficMultipliers[ctx.traffic ?? 'MODERATE'];
+    if (trafficMultiplier !== 1.0) {
+        const trafficLabels: Record<TrafficCondition, string> = {
+            CLEAR:    'Light Traffic',
+            MODERATE: 'Moderate Traffic',
+            HEAVY:    'Heavy Traffic',
+            JAM:      'Traffic Jam',
+        };
+        breakdown.push({
+            factor: 'traffic',
+            label: trafficLabels[ctx.traffic ?? 'MODERATE'],
+            multiplier: trafficMultiplier,
+        });
+    }
+
+    // 4. Demand multiplier
+    const demandMultipliers: Record<DemandLevel, number> = {
+        LOW:       1.0,
+        NORMAL:    1.0,
+        HIGH:      1.08,
+        VERY_HIGH: 1.15,
+    };
+    const demandMultiplier = demandMultipliers[ctx.demandLevel ?? 'NORMAL'];
+    if (demandMultiplier > 1.0) {
+        breakdown.push({
+            factor: 'demand',
+            label: ctx.demandLevel === 'VERY_HIGH' ? 'Very High Demand' : 'High Demand',
+            multiplier: demandMultiplier,
+        });
+    }
+
+    // Combine multiplicatively, then hard cap at 1.2
+    const combined = breakdown.reduce((acc, item) => acc * item.multiplier, 1.0);
+    const finalMultiplier = Math.min(1.2, Math.round(combined * 100) / 100);
+
+    // Build explanation from active factors
+    const factors = breakdown.map(b => b.label);
+    const explanation = factors.length > 0
+        ? `Price includes ${factors.join(' and ').toLowerCase()}`
+        : 'Standard fare — no surcharges';
+
+    return { finalMultiplier, breakdown, explanation };
+}
+
 // ─── Airport Detection ──────────────────────────────────
 
 /**
