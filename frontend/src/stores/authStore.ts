@@ -67,10 +67,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
         otp 
       });
       
-      console.log('[AuthStore] OTP Response:', response.data);
       if (response.data.success && response.data.data.token) {
         const token = response.data.data.token;
-        console.log('[AuthStore] Token received:', typeof token, token.substring(0, 20));
         const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
         localStorage.setItem('movzz_token', token);
         localStorage.setItem('movzz_token_expiry', String(expiry));

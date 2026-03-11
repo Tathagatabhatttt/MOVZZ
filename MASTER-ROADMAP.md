@@ -1,6 +1,6 @@
 # MOVZZ — Master Roadmap (Combined)
 > Reliability-Orchestrated Mobility Platform · Chennai, India
-> Last updated: March 10, 2026
+> Last updated: March 11, 2026
 
 ---
 
@@ -25,11 +25,11 @@
 | Section 0 — Security Hardening | 11 | 11 | 0 |
 | Section 1 — Foundation | 34 | 34 | 0 |
 | Section 2 — Platform Features | 26 | 9 | 17 |
-| Section 3 — AI Intelligence Layer | 23 | 13 | 10 |
+| Section 3 — AI Intelligence Layer | 23 | 18 | 5 |
 | Section 4 — Production & Deployment | 14 | 0 | 14 |
-| **TOTAL** | **108** | **67** | **41** |
+| **TOTAL** | **108** | **72** | **36** |
 
-**Progress: 67/108 tasks (62%)**
+**Progress: 72/108 tasks (67%)**
 
 ---
 
@@ -184,7 +184,7 @@
 
 ---
 
-## SECTION 3 — AI Intelligence Layer 🤖 (13/23 Done, 10 Remaining)
+## SECTION 3 — AI Intelligence Layer 🤖 (18/23 Done, 5 Remaining)
 
 > **Achieved targets (post AI Week 1):** Booking success rate 75% → tracked. Confirmation time 45s → tracked.
 > **Remaining target:** Revenue +10–15% via fair dynamic pricing (AI Week 3).
@@ -212,15 +212,17 @@
 | AI-12 | 🟠 | **Prisma schema — AI Week 2 tables** — `ProviderMetricsCache` (Redis-backed aggregated metrics) + `MLTrainingData` (booking outcome training rows) | ✅ DONE | `backend/prisma/schema.prisma` |
 | AI-13 | 🟠 | **Frontend AI-enhanced results screen** — reliability progress bar (green/yellow/red), AI reasoning text (`why`), emoji badges, MOVZZ score chip, animated booking status with orchestration strategy badge | ✅ DONE | `frontend/src/App.jsx` |
 
-### AI Week 3 — Demand Forecasting + Fair Dynamic Pricing ⬜ (0/5)
+### AI Week 3 — Demand Forecasting + Fair Dynamic Pricing ✅ (5/5)
 
-| # | Priority | Task | Files |
-|---|----------|------|-------|
-| AI-14 | 🟡 | **Demand Forecaster Service** — pattern matching; per zone/hour: avg rides last 4 weeks, trend, day-of-week multiplier, Chennai events CSV, weather multiplier (rain +30%); outputs `predictedRides` + confidence interval | `backend/src/services/ai/demand-forecaster.service.ts` NEW |
-| AI-15 | 🟡 | **Prisma migration — demand forecasts** — `DemandForecast` table (zone, forecastHour, predictedRides, confidence, actualRides, forecastAccuracy) | `backend/prisma/schema.prisma` |
-| AI-16 | 🟡 | **Proactive driver positioning job** — nightly 24h forecasts; detect supply gaps; trigger WhatsApp/SMS to drivers in shortage zone with ₹100 bonus incentive | `backend/src/jobs/demand-forecast-update.job.ts` NEW |
-| AI-17 | 🟡 | **Enhanced dynamic pricing** — demand multiplier +5–15%; weather: rain +8% / heavy +15% / storm +20%; traffic: low –5% / jam +12%; **hard cap: base × 1.2**; Movzz Pass users always get base fare | `backend/src/services/fare.service.ts` |
-| AI-18 | 🟡 | **Pricing breakdown API + frontend** — quotes response adds `{ baseFare, breakdown: [{factor, amount}], explanation }`; "Why this price?" modal | `backend/src/controllers/booking.controller.ts`, `frontend/src/App.jsx` |
+> Completed March 11, 2026 — all 5 tasks done.
+
+| # | Priority | Task | Status | Files |
+|---|----------|------|--------|-------|
+| AI-14 | 🟡 | **Demand Forecaster Service** — 4-week rolling avg per zone/hour; LOW/NORMAL/HIGH/VERY_HIGH levels (×1.0/1.0/1.08/1.15) | ✅ DONE | `backend/src/services/ai/demand-forecaster.service.ts` |
+| AI-15 | 🟡 | **Prisma migration — demand forecasts** — `DemandForecast` table (zone+forecastHour unique, predictedRides, confidence, actualRides, forecastAccuracy); migration SQL created manually (DB offline) | ✅ DONE | `backend/prisma/schema.prisma` |
+| AI-16 | 🟡 | **Demand forecast worker** — BullMQ CRON at 10 PM nightly; 7 zones × 24h forecasts; upserts `DemandForecast`; SMS nudge to drivers in shortage zones with ₹100 incentive | ✅ DONE | `backend/src/workers/demand-forecast.worker.ts` |
+| AI-17 | 🟡 | **Enhanced dynamic pricing** — `getDynamicMultiplier()` in fare.service.ts; weather + traffic + demand multipliers; **hard cap: ×1.2**; returns `{ finalMultiplier, breakdown[], explanation }` | ✅ DONE | `backend/src/services/fare.service.ts` |
+| AI-18 | 🟡 | **Pricing breakdown API + frontend** — `quotes.controller.ts` attaches `baseFare`, `breakdown[]`, `explanation` per quote; App.jsx "Why this price? ▼" expandable panel per card; only visible when breakdown non-empty | ✅ DONE | `backend/src/controllers/quotes.controller.ts`, `frontend/src/App.jsx` |
 
 ### AI Week 4 — Provider Analytics + User Personalization ⬜ (0/5)
 
@@ -275,7 +277,7 @@
 COMPLETED ✅:
   S1–S11                       ← Security hardening (all 11 done)
   #1–#42                       ← Full foundation (all 33 + webhook done)
-  AI-1 through AI-13           ← AI Week 1 + Week 2 (13/23 done)
+  AI-1 through AI-18           ← AI Weeks 1–3 (18/23 done)
   Razorpay webhook             ← Server-to-server payment confirmation
 
 NEXT (before beta):
@@ -289,7 +291,6 @@ NEXT (before beta):
 POST-LAUNCH:
   #49 #50                      ← 🟡 Uber/Ola/Rapido + provider onboarding
   #45 #46                      ← 🟡 WhatsApp + CDN
-  AI-14 AI-15 AI-16 AI-17 AI-18 ← 🟡 AI Week 3 (demand forecasting + dynamic pricing)
   D13 D14                      ← 🟡 FAQ + env docs
   AI-19 AI-20 AI-21 AI-22 AI-23 ← 🟢 AI Week 4 (analytics + personalization)
   #44 #51 #52 #53 #54 #55     ← 🟢 FCM + React Native mobile apps
@@ -310,4 +311,4 @@ POST-LAUNCH:
 
 ---
 
-*MOVZZ Master Roadmap · March 10, 2026 · **67/108 tasks done (62%)***
+*MOVZZ Master Roadmap · March 11, 2026 · **72/108 tasks done (67%)***
