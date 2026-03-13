@@ -79,6 +79,42 @@ function detailRow(label: string, value: string): string {
     </tr>`;
 }
 
+// ─── 0. OTP Verification ─────────────────────────────────
+
+export async function sendOTPEmail(toEmail: string, otp: string): Promise<void> {
+    if (!isReady()) {
+        console.log('╔════════════════════════════════════╗');
+        console.log(`║ [OTP DEV — no Resend key]          ║`);
+        console.log(`║ To:  ${toEmail.padEnd(28)} ║`);
+        console.log(`║ OTP: ${otp.padEnd(28)} ║`);
+        console.log('╚════════════════════════════════════╝');
+        return;
+    }
+
+    const html = layout(`
+        <div style="text-align:center;padding:8px 0 24px;">
+          <div style="font-size:13px;color:#64748b;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.08em;">
+            Your verification code
+          </div>
+          <div style="display:inline-block;background:#f1f5f9;border-radius:10px;padding:18px 40px;">
+            <span style="font-size:36px;font-weight:800;color:#0d1d35;letter-spacing:0.2em;">${otp}</span>
+          </div>
+          <p style="margin:20px 0 0;font-size:13px;color:#94a3b8;">
+            Valid for 5 minutes. Do not share this code with anyone.
+          </p>
+        </div>
+    `);
+
+    await resend!.emails.send({
+        from: FROM,
+        to: [toEmail],
+        subject: `${otp} is your MOVZZ verification code`,
+        html,
+    });
+
+    console.log(`[Email] OTP sent → ${toEmail}`);
+}
+
 // ─── 1. Booking Confirmation ─────────────────────────────
 
 interface ConfirmationParams {

@@ -144,6 +144,9 @@ model Provider {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   lastActiveAt    DateTime?
+  isOnline        Boolean       @default(false)
+  lastLat         Float?
+  lastLng         Float?
 
   bookings      Booking[]
   metrics       ProviderMetric[]

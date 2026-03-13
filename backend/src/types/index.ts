@@ -13,6 +13,8 @@ export interface User {
 export interface JWTPayload {
   userId: string;
   phone: string;
+  providerId?: string;
+  role?: 'user' | 'provider';
 }
 
 export interface AuthRequest {
