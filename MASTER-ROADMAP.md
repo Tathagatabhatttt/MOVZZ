@@ -24,12 +24,12 @@
 |----------|-------|------|-----------|
 | Section 0 — Security Hardening | 11 | 11 | 0 |
 | Section 1 — Foundation | 34 | 34 | 0 |
-| Section 2 — Platform Features | 26 | 9 | 17 |
+| Section 2 — Platform Features | 26 | 11 | 15 |
 | Section 3 — AI Intelligence Layer | 23 | 18 | 5 |
 | Section 4 — Production & Deployment | 14 | 0 | 14 |
-| **TOTAL** | **108** | **72** | **36** |
+| **TOTAL** | **108** | **74** | **34** |
 
-**Progress: 72/108 tasks (67%)**
+**Progress: 74/108 tasks (69%)**
 
 ---
 
@@ -145,15 +145,15 @@
 
 ---
 
-## SECTION 2 — Platform Features ⬜ (9/26 Done, 17 Remaining)
+## SECTION 2 — Platform Features 🔄 (11/26 Done, 15 Remaining)
 
-### Phase 6 — Notifications (remaining) 🔄 (1/4 done)
+### Phase 6 — Notifications (remaining) 🔄 (3/4 done)
 
 | # | Priority | Task | Notes |
 |---|----------|------|-------|
-| 43 | 🟠 | **Twilio SMS — real OTP delivery** — replace `console.log` mock in `sms.worker.ts` with Twilio client; verify India DLT sender ID | Needs `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
+| 43 | 🟠 | **WhatsApp OTP delivery** — `sms.worker.ts` now sends via Twilio WhatsApp API; dev sandbox + prod path; console fallback if creds absent | ✅ DONE — `backend/src/workers/sms.worker.ts` |
 | 44 | 🟢 | FCM push notifications — booking state changes, driver ETA | Needs React Native or PWA service worker + Firebase project |
-| 45 | 🟡 | WhatsApp API via Twilio — booking alerts, driver confirmation | Same Twilio credentials, different endpoint; create message templates |
+| 45 | 🟡 | WhatsApp booking alerts + driver confirmation | OTP via WhatsApp ✅ DONE. Booking state alerts (post-launch) — same Twilio creds, extend sms.worker.ts |
 
 ### Phase 7 — Infrastructure (remaining) 🔄 (3/4 done)
 
@@ -278,10 +278,10 @@ COMPLETED ✅:
   S1–S11                       ← Security hardening (all 11 done)
   #1–#42                       ← Full foundation (all 33 + webhook done)
   AI-1 through AI-18           ← AI Weeks 1–3 (18/23 done)
+  #43 #45 (partial)            ← WhatsApp OTP live (Spotify-style message format)
   Razorpay webhook             ← Server-to-server payment confirmation
 
 NEXT (before beta):
-  #43                          ← 🟠 Real Twilio OTP (users cannot sign up without it)
   P0 #47 #48                   ← 🟠 Provider interface + first 2 real providers
   P1                           ← 🟠 Provider health dashboard
   D1 D2 D3 D4 D5              ← 🔴 Deploy to production
@@ -311,4 +311,4 @@ POST-LAUNCH:
 
 ---
 
-*MOVZZ Master Roadmap · March 11, 2026 · **72/108 tasks done (67%)***
+*MOVZZ Master Roadmap · March 13, 2026 · **74/108 tasks done (69%)***

@@ -30,6 +30,7 @@ import rideRoutes from './routes/ride.routes';
 import quotesRoutes from './routes/quotes.routes';
 import uploadRoutes from './routes/upload.routes';
 import paymentRoutes from './routes/payment.routes';
+import providerRoutes from './routes/provider.routes';
 import prisma from './config/database';
 import { setIo } from './config/socket';
 import { verifyToken } from './services/jwt.service';
@@ -113,6 +114,7 @@ app.use('/api/v1/rides', rideRoutes);
 app.use('/api/v1/quotes', quotesRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/provider', providerRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────
 
@@ -169,6 +171,10 @@ io.on('connection', (socket) => {
     socket.join(userId);
     // Admin panel joins the shared 'admin' room to receive all booking events
     socket.on('join:admin', () => socket.join('admin'));
+    // Provider app joins provider-specific room for ride assignments
+    socket.on('join:provider', (providerId: string) => {
+        socket.join(`provider:${providerId}`);
+    });
     socket.on('disconnect', () => {
         socket.leave(userId);
     });

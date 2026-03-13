@@ -481,6 +481,15 @@ export async function transitionState(
         io.to(booking.userId).emit('booking:state_changed', payload);
         // Also push to admin room so the Admin Panel can react instantly
         io.to('admin').emit('booking:state_changed', payload);
+
+        // Notify provider of new assignment or cancellation
+        if (booking.providerId) {
+            if (newState === 'CONFIRMED') {
+                io.to(`provider:${booking.providerId}`).emit('ride:new_assignment', payload);
+            } else if (newState === 'CANCELLED') {
+                io.to(`provider:${booking.providerId}`).emit('ride:cancelled', payload);
+            }
+        }
     }
 
     await logBookingEvent(
