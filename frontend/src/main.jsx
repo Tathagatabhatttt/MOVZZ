@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
 import Admin from "./Admin";
+import Provider from "./Provider";
 import "./styles.css";
 
 // Sentry — no-op when VITE_SENTRY_DSN is not set
@@ -15,11 +16,13 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-// Route /admin to the Admin panel, everything else to the main App
-const isAdmin = window.location.pathname.startsWith('/admin');
+// Route by path: /admin → Admin, /provider → Provider, else → App
+const path = window.location.pathname;
+const isAdmin = path.startsWith('/admin');
+const isProvider = path.startsWith('/provider');
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {isAdmin ? <Admin /> : <App />}
+    {isAdmin ? <Admin /> : isProvider ? <Provider /> : <App />}
   </React.StrictMode>
 );
