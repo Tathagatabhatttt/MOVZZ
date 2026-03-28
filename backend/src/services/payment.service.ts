@@ -78,15 +78,24 @@ export async function createPaymentLink(params: {
     const rz = getRazorpay();
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+    // Only include customer field if we have a valid phone — Razorpay rejects empty {}
+    const isRealPhone = (p?: string) =>
+        !!p && /^\+?\d{8,14}$/.test(p.replace(/\s/g, ''));
+    const customerField = isRealPhone(params.customerPhone)
+        ? { customer: { contact: params.customerPhone } }
+        : {};
+
+    // Allow overriding amount for testing (set PAYMENT_TEST_AMOUNT_PAISE=100 for ₹1)
+    const testOverride = process.env.PAYMENT_TEST_AMOUNT_PAISE;
+    const finalAmount = testOverride ? parseInt(testOverride, 10) : params.amountPaise;
+
     // Razorpay Payment Links API
     const link = await (rz as any).paymentLink.create({
-        amount: params.amountPaise,
+        amount: finalAmount,
         currency: 'INR',
         description: `MOVZZ · ${params.pickup} → ${params.dropoff}`,
         reference_id: params.bookingId,        // returned in callback for lookup
-        customer: {
-            contact: params.customerPhone || '',
-        },
+        ...customerField,
         notify: {
             sms: false,     // we handle notifications ourselves
             email: false,

@@ -110,6 +110,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     const existing = get().socket;
     if (existing) {
       existing.off('booking:state_changed');
+      existing.off('booking:driver_assigned');
       existing.off('connect_error');
       existing.disconnect();
     }
@@ -119,6 +120,21 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
     socket.on('booking:state_changed', (data: any) => {
       set({ currentBooking: data });
+    });
+
+    socket.on('booking:driver_assigned', (data: any) => {
+      const current = get().currentBooking;
+      if (current && current.id === data.bookingId) {
+        set({
+          currentBooking: {
+            ...current,
+            driverName: data.driverName,
+            driverPhone: data.driverPhone,
+            driverVehicle: data.driverVehicle,
+            driverEta: data.eta,
+          },
+        });
+      }
     });
 
     socket.on('connect_error', (err: any) => {
@@ -132,6 +148,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     const { socket } = get();
     if (socket) {
       socket.off('booking:state_changed');
+      socket.off('booking:driver_assigned');
       socket.off('connect_error');
       socket.disconnect();
       set({ socket: null });

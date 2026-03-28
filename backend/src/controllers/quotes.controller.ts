@@ -4,6 +4,7 @@ import { getQuotesSchema } from '../validators/quotes.validator';
 import { estimateFares, getDistanceMatrix, getDynamicMultiplier, PricingContext } from '../services/fare.service';
 import { findTopProviders } from '../services/provider-scoring.service';
 import redis from '../config/redis';
+import { getRapidoFareEstimate } from '../services/rapido.service';
 
 export async function getQuotesHandler(req: Request, res: Response): Promise<void> {
     try {
@@ -125,7 +126,43 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
             });
         }
 
-        // 6. Structure Response
+        // 6. Rapido quote (BIKE and AUTO modes)
+        if ((data.transportMode === 'BIKE' || data.transportMode === 'AUTO') &&
+            data.pickupLat && data.pickupLng && data.dropoffLat && data.dropoffLng) {
+            try {
+                const rapidoQuote = await getRapidoFareEstimate({
+                    pickupLat:      data.pickupLat,
+                    pickupLng:      data.pickupLng,
+                    pickupAddress:  data.pickup  || '',
+                    dropoffLat:     data.dropoffLat,
+                    dropoffLng:     data.dropoffLng,
+                    dropoffAddress: data.dropoff || '',
+                });
+
+                const rapidoId = crypto.randomUUID();
+                quotes.push({
+                    id:               rapidoId,
+                    providerId:       null,
+                    provider:         'Rapido',
+                    type:             data.transportMode === 'BIKE' ? 'Bike Taxi' : 'Rapido Auto',
+                    logo:             'rapido',
+                    price:            rapidoQuote.fareRupees,
+                    eta:              rapidoQuote.etaMin,
+                    score:            85,
+                    reliability:      88,
+                    tag:              null,
+                    surge:            false,
+                    farePaise:        rapidoQuote.fareRupees * 100,
+                    source:           'rapido',
+                    rapidoRequestId:  rapidoQuote.requestId,
+                    rapidoServiceId:  rapidoQuote.serviceId,
+                });
+            } catch (err: any) {
+                console.warn('[Rapido] Quote failed (non-blocking):', err.message);
+            }
+        }
+
+        // 7. Structure Response
         const responseData = {
             quoteId,
             quotes,
@@ -136,8 +173,7 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
             },
         };
 
-        // 7. Cache the full session response under the session quoteId.
-        //    Used for auditing and potential replay.
+        // Cache the full session response under the session quoteId.
         await redis.set(`quote:${quoteId}`, JSON.stringify(responseData), 300);
 
         // FIX: Also cache each individual quote under its own ID.
@@ -155,9 +191,12 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
                 redis.set(
                     `quote_item:${quote.id}`,
                     JSON.stringify({
-                        providerId: quote.providerId,
-                        farePaise: quote.farePaise,
-                        transportMode: data.transportMode,
+                        providerId:      quote.providerId,
+                        farePaise:       quote.farePaise,
+                        transportMode:   data.transportMode,
+                        ...(quote.source          && { source:          quote.source }),
+                        ...(quote.rapidoRequestId && { rapidoRequestId: quote.rapidoRequestId }),
+                        ...(quote.rapidoServiceId && { rapidoServiceId: quote.rapidoServiceId }),
                     }),
                     300
                 )
