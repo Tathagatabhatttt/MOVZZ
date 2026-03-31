@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
@@ -13,6 +14,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   plugins: [
+    react(),
     VitePWA({
       registerType: 'autoUpdate',
       // Service worker auto-updates silently in the background

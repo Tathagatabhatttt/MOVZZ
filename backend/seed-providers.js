@@ -3,8 +3,6 @@ const prisma = new PrismaClient();
 
 async function seedProviders() {
   try {
-    await prisma.provider.deleteMany({});
-    
     const providers = [
       // CAB - Economy providers
       {
@@ -20,6 +18,7 @@ async function seedProviders() {
         maxCapacity: 50,
         vehicleModel: 'Maruti Swift',
         paymentTerms: 'T+2',
+        apiEndpoint: 'http://localhost:3000/api/v1/mock-providers/fastcabs',
       },
       // CAB - Comfort providers
       {
@@ -35,6 +34,7 @@ async function seedProviders() {
         maxCapacity: 35,
         vehicleModel: 'Hyundai i20',
         paymentTerms: 'T+2',
+        apiEndpoint: 'http://localhost:3000/api/v1/mock-providers/reliablerides',
       },
       // CAB - Premium providers
       {
@@ -50,6 +50,7 @@ async function seedProviders() {
         maxCapacity: 20,
         vehicleModel: 'Skoda Rapid',
         paymentTerms: 'T+2',
+        apiEndpoint: 'http://localhost:3000/api/v1/mock-providers/premiumcars',
       },
       // BIKE providers
       {
@@ -124,11 +125,16 @@ async function seedProviders() {
         maxCapacity: 40,
         vehicleModel: 'Tata Nexon',
         paymentTerms: 'T+3',
+        apiEndpoint: 'http://localhost:3000/api/v1/mock-providers/quickride',
       },
     ];
 
     for (const provider of providers) {
-      await prisma.provider.create({ data: provider });
+      await prisma.provider.upsert({
+        where: { phone: provider.phone },
+        update: provider,
+        create: provider,
+      });
     }
 
     console.log(`✅ Seeded ${providers.length} providers:\n`);

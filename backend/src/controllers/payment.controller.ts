@@ -85,14 +85,27 @@ export async function createLinkHandler(req: Request, res: Response): Promise<vo
             },
         });
     } catch (err: any) {
-        console.error('[Payment] createLink error:', err.message);
+        // Razorpay SDK throws { statusCode, error: { description } } — not a plain Error
+        const rzMsg = err?.error?.description ?? err?.message ?? JSON.stringify(err);
+        console.error('[Payment] createLink error:', rzMsg);
 
         if (err.message?.includes('RAZORPAY_KEY')) {
             res.status(503).json({ success: false, error: 'Payment service not configured' });
             return;
         }
 
-        res.status(500).json({ success: false, error: err.message || 'Failed to create payment link' });
+        // Razorpay auth failure / account not activated
+        if (err?.statusCode === 401) {
+            res.status(503).json({ success: false, error: 'Payment gateway authentication failed' });
+            return;
+        }
+        // Razorpay validation error (bad input data)
+        if (err?.error?.code === 'BAD_REQUEST_ERROR') {
+            res.status(400).json({ success: false, error: `Payment gateway error: ${rzMsg}` });
+            return;
+        }
+
+        res.status(500).json({ success: false, error: rzMsg || 'Failed to create payment link' });
     }
 }
 

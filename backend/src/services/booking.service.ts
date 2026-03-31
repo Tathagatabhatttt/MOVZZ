@@ -15,17 +15,75 @@
 
 import { BookingState, TripType } from '@prisma/client';
 import prisma from '../config/database';
-import { findBestProvider, ScoredProvider, hardFilter, predictReliability } from './provider-scoring.service';
+import { findBestProvider, hardFilter, predictReliability } from './provider-scoring.service';
 import redis from '../config/redis';
 import { estimateSingleFare } from './fare.service';
 import { mlDataQueue } from '../config/queues';
 import { getIo } from '../config/socket';
 import { bookingTimeoutQueue, recoveryQueue } from '../config/queues';
 import { sendBookingConfirmation, sendBookingCancellation } from './email.service';
+import { bookRapidoRide, cancelRapidoRide } from './rapido.service';
 import { buildRideContext } from './context-builder.service';
 import { getProviderMetrics } from './provider-metrics.service';
 import { decideStrategy, executeStrategy } from './ai/orchestration.service';
 import { monitorBooking } from './ai/failure-detector.service';
+
+// ─── Call External Provider API ─────────────────────────
+// After a booking is CONFIRMED, if the assigned provider has an apiEndpoint,
+// call their /book-ride endpoint to get real driver details.
+// Fails silently — never blocks the booking transition.
+
+async function callProviderBookingApi(bookingId: string, providerId: string) {
+    const provider = await prisma.provider.findUnique({
+        where: { id: providerId },
+        select: { apiEndpoint: true },
+    });
+    if (!provider?.apiEndpoint) return;
+
+    const resp = await fetch(`${provider.apiEndpoint}/book-ride`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+        signal: AbortSignal.timeout(5000),
+    });
+
+    if (!resp.ok) return;
+
+    const data = await resp.json() as {
+        status: string;
+        driverName?: string;
+        driverPhone?: string;
+        driverVehicle?: string;
+        eta?: number;
+    };
+
+    if (data.status !== 'confirmed') return;
+
+    await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+            driverName: data.driverName ?? null,
+            driverPhone: data.driverPhone ?? null,
+            driverVehicle: data.driverVehicle ?? null,
+            driverEta: data.eta ?? null,
+        },
+    });
+
+    // Push driver details to user via Socket.IO
+    const updated = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true } });
+    const io = getIo();
+    if (io && updated) {
+        io.to(updated.userId).emit('booking:driver_assigned', {
+            bookingId,
+            driverName: data.driverName,
+            driverPhone: data.driverPhone,
+            driverVehicle: data.driverVehicle,
+            driverEta: data.eta,
+        });
+    }
+
+    console.log(`[ProviderAPI] Driver assigned for booking ${bookingId}: ${data.driverName}`);
+}
 
 // ─── Valid State Transitions ────────────────────────────
 
@@ -96,6 +154,7 @@ export async function createBooking(params: {
         params.transportMode,
     );
     let cachedProviderId: string | null = null;
+    let cachedQuoteData: Record<string, any> | null = null;
 
     if (params.quoteId) {
         try {
@@ -108,9 +167,10 @@ export async function createBooking(params: {
             const cachedQuote = raw ? JSON.parse(raw) : null;
 
             if (cachedQuote) {
-                resolvedFare = cachedQuote.farePaise;
-                cachedProviderId = cachedQuote.providerId; // null for metro
-                console.log(`[Booking] Quote cache hit for ${params.quoteId} — provider: ${cachedProviderId}, fare: ${resolvedFare}`);
+                resolvedFare     = cachedQuote.farePaise;
+                cachedProviderId = cachedQuote.providerId;
+                cachedQuoteData  = cachedQuote;
+                console.log(`[Booking] Quote cache hit for ${params.quoteId} — provider: ${cachedProviderId}, source: ${cachedQuote.source || 'internal'}, fare: ${resolvedFare}`);
             } else {
                 // Cache miss: quote expired (>5 min) or never existed
                 console.warn(`[Booking] Quote cache miss for ${params.quoteId} — falling back to scoring`);
@@ -150,8 +210,13 @@ export async function createBooking(params: {
         { delay: 5 * 60 * 1000 },
     );
 
-    if (cachedProviderId) {
-        // Fast path: user already picked a provider from the results screen.
+    if (cachedQuoteData?.source === 'rapido') {
+        // Rapido path: call Rapido's booking API and transition to CONFIRMED.
+        assignRapidoRide(booking.id, cachedQuoteData, params).catch(err => {
+            console.error(`Rapido assignment failed for booking ${booking.id}:`, err);
+        });
+    } else if (cachedProviderId) {
+        // Fast path: user already picked an internal provider from the results screen.
         assignCachedProvider(booking.id, cachedProviderId).catch(err => {
             console.error(`Cached provider assignment failed for booking ${booking.id}:`, err);
         });
@@ -213,6 +278,49 @@ export async function createBooking(params: {
     }
 
     return booking;
+}
+
+// ─── Assign Rapido Ride ───────────────────────────────────
+// Calls Rapido's booking API and transitions the booking to CONFIRMED
+// with real (or simulated) driver details as metadata.
+
+async function assignRapidoRide(
+    bookingId: string,
+    cachedQuote: Record<string, any>,
+    params: {
+        pickup?: string; dropoff?: string;
+        pickupLat?: number; pickupLng?: number;
+        dropoffLat?: number; dropoffLng?: number;
+    },
+) {
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking || booking.state !== 'SEARCHING') return;
+
+    const result = await bookRapidoRide({
+        requestId:      cachedQuote.rapidoRequestId,
+        serviceId:      cachedQuote.rapidoServiceId,
+        pickupLat:      params.pickupLat  ?? booking.pickupLat  ?? 13.0827,
+        pickupLng:      params.pickupLng  ?? booking.pickupLng  ?? 80.2707,
+        pickupAddress:  params.pickup     || booking.pickup,
+        dropoffLat:     params.dropoffLat ?? booking.dropoffLat ?? 13.0827,
+        dropoffLng:     params.dropoffLng ?? booking.dropoffLng ?? 80.2707,
+        dropoffAddress: params.dropoff    || booking.dropoff,
+    });
+
+    // Store Rapido order ID so we can cancel it later if needed
+    await redis.set(`rapido:booking:${bookingId}`, result.orderId, 3600);
+
+    await transitionState(bookingId, 'CONFIRMED', {
+        provider:     `Rapido — ${result.driverName}`,
+        driverName:   result.driverName,
+        driverPhone:  result.driverPhone,
+        driverRating: result.driverRating,
+        bikeNumber:   result.bikeNumber,
+        bikeModel:    result.bikeModel,
+        externalOrderId: result.orderId,
+    });
+
+    await logBookingEvent(bookingId, 'RAPIDO_BOOKED', `Rapido ride booked: orderId=${result.orderId}, driver=${result.driverName}`);
 }
 
 // ─── Assign Cached Provider (Fast Path) ─────────────────
@@ -468,6 +576,18 @@ export async function transitionState(
         data: updateData,
     });
 
+    // Cancel Rapido ride when booking is cancelled
+    if (newState === 'CANCELLED') {
+        const rapidoOrderId = await redis.get(`rapido:booking:${bookingId}`);
+        if (rapidoOrderId) {
+            cancelRapidoRide({
+                orderId:   rapidoOrderId,
+                pickupLat: booking.pickupLat  ?? 13.0827,
+                pickupLng: booking.pickupLng  ?? 80.2707,
+            }).catch((err: any) => console.warn('[Rapido] Cancel error (non-blocking):', err.message));
+        }
+    }
+
     // Push state change to the client via Socket.IO (no-op if socket not initialised)
     const io = getIo();
     if (io) {
@@ -497,6 +617,13 @@ export async function transitionState(
         `STATE_${newState}`,
         `State changed: ${booking.state} → ${newState}`
     );
+
+    // Call external provider API to fetch driver details (non-blocking)
+    if (newState === 'CONFIRMED' && booking.providerId) {
+        callProviderBookingApi(bookingId, booking.providerId).catch(err =>
+            console.warn(`[ProviderAPI] Non-blocking error for booking ${bookingId}:`, err.message)
+        );
+    }
 
     // AI Week 2: queue ML data collection on terminal states
     if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(newState)) {
