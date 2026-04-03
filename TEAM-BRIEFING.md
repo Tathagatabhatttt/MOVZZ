@@ -1,12 +1,12 @@
-# MOVZZ — Team Briefing
+# MOVZZY — Team Briefing
 > Reliability-Orchestrated Mobility Platform · Chennai, India
 > March 10, 2026
 
 ---
 
-## What is MOVZZ?
+## What is MOVZZY?
 
-MOVZZ is a ride aggregator that ranks transport options (cab, bike taxi, auto, metro) by **completion confidence, dispatch speed, and pricing** — not just price. Think Uber + reliability scoring + multi-modal. Base city: Chennai.
+MOVZZY is a ride aggregator that ranks transport options (cab, bike taxi, auto, metro) by **completion confidence, dispatch speed, and pricing** — not just price. Think Uber + reliability scoring + multi-modal. Base city: Chennai.
 
 ---
 
@@ -66,7 +66,7 @@ MOVZZ is a ride aggregator that ranks transport options (cab, bike taxi, auto, m
 - Redis cache service: `getOrCompute(key, ttl, fn)` pattern across all AI services
 - ML training data collection: triggers on every terminal booking state (COMPLETED / FAILED / CANCELLED)
 - New DB tables: `ProviderMetricsCache`, `MLTrainingData`
-- Frontend AI UI: reliability bars, AI reasoning text, MOVZZ score chips, orchestration strategy badge
+- Frontend AI UI: reliability bars, AI reasoning text, MOVZZY score chips, orchestration strategy badge
 
 ---
 
@@ -101,7 +101,7 @@ MOVZZ is a ride aggregator that ranks transport options (cab, bike taxi, auto, m
 
 ### Opening
 
-"Week 3 is about making MOVZZ smarter about *when* and *where* demand spikes — and pricing fairly when it does. We're building two things: a demand forecaster, and an enhanced pricing engine that uses it."
+"Week 3 is about making MOVZZY smarter about *when* and *where* demand spikes — and pricing fairly when it does. We're building two things: a demand forecaster, and an enhanced pricing engine that uses it."
 
 ---
 
@@ -147,4 +147,4 @@ The quotes API response gains a new `breakdown` field: base fare, plus each mult
 
 ---
 
-*MOVZZ · March 2026 · 67/108 tasks (62%)*
+*MOVZZY · March 2026 · 67/108 tasks (62%)*

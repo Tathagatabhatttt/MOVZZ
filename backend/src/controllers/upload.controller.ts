@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ UPLOAD CONTROLLER
+ *  MOVZZY UPLOAD CONTROLLER
  * ═══════════════════════════════════════════════════════════
  *
  *  POST /api/v1/upload/presign   — get a signed URL to upload to S3

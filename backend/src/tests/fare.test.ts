@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ UNIT TESTS — Fare Estimation Service
+ *  MOVZZY UNIT TESTS — Fare Estimation Service
  * ═══════════════════════════════════════════════════════════
  *
  *  Tests:
@@ -84,7 +84,7 @@ const LOCATIONS = {
 async function runAllTests() {
     console.log('');
     console.log('╔══════════════════════════════════════════╗');
-    console.log('║    🧮 MOVZZ FARE SERVICE TESTS 🧮       ║');
+    console.log('║    🧮 MOVZZY FARE SERVICE TESTS 🧮       ║');
     console.log('╚══════════════════════════════════════════╝');
     console.log('');
 

@@ -5,6 +5,7 @@ import { estimateFares, getDistanceMatrix, getDynamicMultiplier, PricingContext 
 import { findTopProviders } from '../services/provider-scoring.service';
 import redis from '../config/redis';
 import { getRapidoFareEstimate } from '../services/rapido.service';
+import { getUserPreferences } from '../services/ai/user-personalization.service';
 
 export async function getQuotesHandler(req: Request, res: Response): Promise<void> {
     try {
@@ -65,6 +66,20 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
         // 5. Handle CAB, BIKE, AUTO
         else {
             const providers = await findTopProviders(5, [], 'STANDARD');
+
+            // AI-20: personalization — boost preferred providers +3 pts
+            const userId = (req as any).user?.userId;
+            if (userId) {
+                const prefs = await getUserPreferences(userId);
+                if (prefs.preferredProviderIds.length > 0) {
+                    for (const p of providers) {
+                        if (prefs.preferredProviderIds.includes(p.providerId)) {
+                            p.score = Math.min(100, p.score + 3);
+                        }
+                    }
+                    providers.sort((a, b) => b.score - a.score);
+                }
+            }
 
             if (providers.length === 0) {
                 res.status(404).json({

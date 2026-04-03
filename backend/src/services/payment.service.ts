@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ PAYMENT SERVICE — Razorpay Payment Links
+ *  MOVZZY PAYMENT SERVICE — Razorpay Payment Links
  * ═══════════════════════════════════════════════════════════
  *
  *  Uses Razorpay Payment Links (rzp.io/l/...) instead of the
@@ -93,7 +93,7 @@ export async function createPaymentLink(params: {
     const link = await (rz as any).paymentLink.create({
         amount: finalAmount,
         currency: 'INR',
-        description: `MOVZZ · ${params.pickup} → ${params.dropoff}`,
+        description: `MOVZZY · ${params.pickup} → ${params.dropoff}`,
         reference_id: params.bookingId,        // returned in callback for lookup
         ...customerField,
         notify: {

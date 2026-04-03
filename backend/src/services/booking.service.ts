@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ BOOKING SERVICE — State Machine & Business Logic
+ *  MOVZZY BOOKING SERVICE — State Machine & Business Logic
  * ═══════════════════════════════════════════════════════════
  * 
  *  Booking State Machine:

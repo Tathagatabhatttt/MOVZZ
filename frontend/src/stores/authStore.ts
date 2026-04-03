@@ -17,13 +17,13 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  const storedExpiry = parseInt(localStorage.getItem('movzz_token_expiry') || '0');
+  const storedExpiry = parseInt(localStorage.getItem('movzzy_token_expiry') || '0');
   const isExpired = storedExpiry > 0 && storedExpiry < Date.now();
-  const storedToken = isExpired ? null : (localStorage.getItem('movzz_token') || null);
+  const storedToken = isExpired ? null : (localStorage.getItem('movzzy_token') || null);
 
   if (isExpired) {
-    localStorage.removeItem('movzz_token');
-    localStorage.removeItem('movzz_token_expiry');
+    localStorage.removeItem('movzzy_token');
+    localStorage.removeItem('movzzy_token_expiry');
   }
 
   return {
@@ -70,8 +70,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (response.data.success && response.data.data.token) {
         const token = response.data.data.token;
         const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-        localStorage.setItem('movzz_token', token);
-        localStorage.setItem('movzz_token_expiry', String(expiry));
+        localStorage.setItem('movzzy_token', token);
+        localStorage.setItem('movzzy_token_expiry', String(expiry));
         set({
           token,
           tokenExpiry: expiry,
@@ -90,14 +90,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     loginWithOAuthToken: (token) => {
       const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-      localStorage.setItem('movzz_token', token);
-      localStorage.setItem('movzz_token_expiry', String(expiry));
+      localStorage.setItem('movzzy_token', token);
+      localStorage.setItem('movzzy_token_expiry', String(expiry));
       set({ token, tokenExpiry: expiry, isAuthenticated: true });
     },
 
     logout: () => {
-      localStorage.removeItem('movzz_token');
-      localStorage.removeItem('movzz_token_expiry');
+      localStorage.removeItem('movzzy_token');
+      localStorage.removeItem('movzzy_token_expiry');
       set({ token: null, tokenExpiry: null, isAuthenticated: false, otpSent: false, phone: '' });
     }
   };

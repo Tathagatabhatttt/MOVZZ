@@ -3,7 +3,7 @@
  *  RAPIDO SERVICE
  * ═══════════════════════════════════════════════════════════
  *
- *  Integrates Rapido bike-taxi quotes and bookings into MOVZZ.
+ *  Integrates Rapido bike-taxi quotes and bookings into MOVZZY.
  *
  *  When RAPIDO_TOKEN is set, makes live API calls to Rapido.
  *  When not set (or on API failure), returns realistic simulated

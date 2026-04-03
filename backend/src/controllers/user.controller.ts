@@ -1,28 +1,32 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import crypto from 'crypto';
+import { getUserPreferences } from '../services/ai/user-personalization.service';
 
 // ─── Get User Profile ────────────────────────────────────
 
 export async function getProfileHandler(req: Request, res: Response) {
     try {
         const userId = (req as any).user.userId;
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                phone: true,
-                name: true,
-                email: true,
-                referralCode: true,
-                referredBy: true,
-                createdAt: true,
-                role: true,
-                _count: { select: { bookings: true } },
-            },
-        });
+        const [user, preferences] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    id: true,
+                    phone: true,
+                    name: true,
+                    email: true,
+                    referralCode: true,
+                    referredBy: true,
+                    createdAt: true,
+                    role: true,
+                    _count: { select: { bookings: true } },
+                },
+            }),
+            getUserPreferences(userId),
+        ]);
         if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-        res.json({ success: true, data: user });
+        res.json({ success: true, data: { ...user, preferences } });
     } catch (err: any) {
         res.status(500).json({ success: false, error: err.message });
     }

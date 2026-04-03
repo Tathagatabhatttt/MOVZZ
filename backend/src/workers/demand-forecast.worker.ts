@@ -94,7 +94,7 @@ new Worker('demand-forecast', async () => {
     for (const window of windows.slice(0, 5)) { // max 5 nudge messages per night
       const zoneLabel = formatZoneLabel(window.zone);
       const timeRange = `${padHour(window.startHour)}–${padHour(window.endHour)} AM/PM`;
-      const message   = `MOVZZ: High demand expected in ${zoneLabel} tomorrow ${timeRange}. Come online for a ₹100 bonus per ride!`;
+      const message   = `MOVZZY: High demand expected in ${zoneLabel} tomorrow ${timeRange}. Come online for a ₹100 bonus per ride!`;
 
       // Check if shortage is significant (predicted > perZoneCapacity × SHORTAGE_RATIO)
       if (window.peakRides > perZoneCapacity * SHORTAGE_RATIO) {
@@ -108,6 +108,83 @@ new Worker('demand-forecast', async () => {
     }
 
     console.log(`[DemandForecast] Queued driver nudges for ${Math.min(windows.length, 5)} shortage windows.`);
+
+    // ─── AI-23: Nudge inactive providers in high-demand zones ──
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const highDemandZones = [...new Set(shortageZones.map(z => z.zone))];
+    const inactiveProviders = await prisma.provider.findMany({
+      where: {
+        isOnline: false,
+        lastActiveAt: { lt: twoDaysAgo },
+        active: true,
+      },
+      select: { id: true, phone: true, name: true, dominant_zones: true },
+    });
+
+    let nudgedInactive = 0;
+    for (const p of inactiveProviders) {
+      const zones = Array.isArray(p.dominant_zones) ? p.dominant_zones : [];
+      const inHighDemand = zones.some((z: string) => highDemandZones.includes(z));
+      if (inHighDemand || zones.length === 0) { // nudge if in high-demand zone or no zone data
+        await smsQueue.add(`inactive-nudge-${p.id}`, {
+          to: p.phone,
+          message: `MOVZZY: Rides are in high demand near you! Come online to start earning.`,
+          type: 'inactive_driver_nudge',
+        }).catch(() => {});
+        nudgedInactive++;
+      }
+    }
+    if (nudgedInactive > 0) {
+      console.log(`[DemandForecast] Queued ${nudgedInactive} inactive driver nudges.`);
+    }
+  }
+
+  // ─── AI-22: Backfill yesterday's actual rides + forecast accuracy ──
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+  const endOfYesterday = new Date(yesterday);
+  endOfYesterday.setHours(23, 59, 59, 999);
+
+  let accuracyUpdated = 0;
+  for (const zone of CHENNAI_ZONES) {
+    for (let hour = 0; hour < 24; hour++) {
+      const slotStart = new Date(yesterday);
+      slotStart.setHours(hour, 0, 0, 0);
+      const slotEnd = new Date(yesterday);
+      slotEnd.setHours(hour, 59, 59, 999);
+
+      try {
+        const forecast = await prisma.demandForecast.findFirst({
+          where: { zone, forecastHour: { gte: slotStart, lte: slotEnd } },
+        });
+        if (!forecast) continue;
+
+        const actualCount = await prisma.booking.count({
+          where: {
+            createdAt: { gte: slotStart, lte: slotEnd },
+            state: 'COMPLETED',
+            contextSnapshot: { path: ['zone'], equals: zone },
+          },
+        });
+
+        const predicted = forecast.predictedRides;
+        const accuracy = predicted === 0 && actualCount === 0
+          ? 1.0
+          : Math.max(0, Math.min(1, 1 - Math.abs(predicted - actualCount) / Math.max(actualCount, 1)));
+
+        await prisma.demandForecast.update({
+          where: { id: forecast.id },
+          data: { actualRides: actualCount, forecastAccuracy: accuracy },
+        });
+        accuracyUpdated++;
+      } catch {
+        // Non-blocking — skip on error
+      }
+    }
+  }
+  if (accuracyUpdated > 0) {
+    console.log(`[DemandForecast] Updated accuracy for ${accuracyUpdated} forecast slots.`);
   }
 
 }, { connection, concurrency: 1 });

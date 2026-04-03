@@ -13,6 +13,7 @@ import {
     resumeProvider,
     getProviderMetrics,
     getSystemMetrics,
+    getAiStats,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -23,6 +24,7 @@ router.use(authenticateUser, requireAdmin);
 // ─── Dashboard ──────────────────────────────────────────
 router.get('/dashboard', getDashboard);
 router.get('/metrics', getSystemMetrics);
+router.get('/ai-stats', getAiStats);
 
 // ─── Booking Management ─────────────────────────────────
 router.get('/bookings/active', getActiveBookings);

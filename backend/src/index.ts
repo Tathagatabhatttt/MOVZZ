@@ -223,7 +223,7 @@ demandForecastQueue.add(
 httpServer.listen(PORT, () => {
     console.log('');
     console.log('╔══════════════════════════════════════════╗');
-    console.log('║         🚗 MOVZZ API SERVER 🚗          ║');
+    console.log('║         🚗 MOVZZY API SERVER 🚗          ║');
     console.log('╠══════════════════════════════════════════╣');
     console.log(`║  Status:  RUNNING                        ║`);
     console.log(`║  Port:    ${String(PORT).padEnd(30)}║`);

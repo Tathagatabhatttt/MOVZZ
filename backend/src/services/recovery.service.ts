@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ RECOVERY & COMPENSATION SERVICE
+ *  MOVZZY RECOVERY & COMPENSATION SERVICE
  * ═══════════════════════════════════════════════════════════
  * 
  *  Handles failed bookings with:

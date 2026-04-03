@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ PAYMENT CONTROLLER — Razorpay Payment Links
+ *  MOVZZY PAYMENT CONTROLLER — Razorpay Payment Links
  * ═══════════════════════════════════════════════════════════
  *
  *  POST /api/v1/payments/create-link

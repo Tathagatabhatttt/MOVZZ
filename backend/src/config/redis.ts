@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ REDIS CLIENT
+ *  MOVZZY REDIS CLIENT
  * ═══════════════════════════════════════════════════════════
  *  Replaces the in-memory MemoryCache with a real Redis
  *  connection via ioredis. The interface (set/get/del) is

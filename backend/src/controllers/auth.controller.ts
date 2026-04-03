@@ -8,7 +8,7 @@ import { smsQueue } from '../config/queues';
 
 /**
  * ╔════════════════════════════════════════════════════════════════╗
- * ║  MOVZZ NATIVE AUTHENTICATION (High Reliability)                ║
+ * ║  MOVZZY NATIVE AUTHENTICATION (High Reliability)                ║
  * ╚════════════════════════════════════════════════════════════════╝
  */
 
@@ -32,7 +32,7 @@ export async function sendOTP(req: Request, res: Response): Promise<void> {
     // with 3 automatic retries via exponential backoff.
     await smsQueue.add(`otp-${key}`, { phone: key, otp });
 
-    console.log(`[MOVZZ AUTH] OTP queued for ${key} (MOCK)`);
+    console.log(`[MOVZZY AUTH] OTP queued for ${key} (MOCK)`);
 
     res.json({
       success: true,
@@ -43,7 +43,7 @@ export async function sendOTP(req: Request, res: Response): Promise<void> {
       }
     });
   } catch (error: any) {
-    console.error('[MOVZZ AUTH] Fatal Error:', error.message);
+    console.error('[MOVZZY AUTH] Fatal Error:', error.message);
     res.status(500).json({ success: false, error: 'Internal Auth Error' });
   }
 }
@@ -85,7 +85,7 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
     res.json({ success: true, data: { token, user } });
 
   } catch (error: any) {
-    console.error('[MOVZZ AUTH] Verify Error:', error.message);
+    console.error('[MOVZZY AUTH] Verify Error:', error.message);
     res.status(500).json({ success: false, error: 'Verification failed' });
   }
 }

@@ -1,4 +1,4 @@
-# MOVZZ Gap Resolution — Implementation Plan
+# MOVZZY Gap Resolution — Implementation Plan
 
 ## Current State Summary
 - **Backend**: Express + Prisma + PostgreSQL, auth (OTP), booking state machine, provider scoring, ride search (simulated + NY)

@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ UNIT TESTS — Provider Scoring ("The Brain")
+ *  MOVZZY UNIT TESTS — Provider Scoring ("The Brain")
  * ═══════════════════════════════════════════════════════════
  *
  *  Tests:
@@ -141,7 +141,7 @@ async function teardown() {
 
 async function runTests() {
     console.log('\n╔══════════════════════════════════════════╗');
-    console.log('║  🧪 MOVZZ UNIT TESTS — Provider Scoring ║');
+    console.log('║  🧪 MOVZZY UNIT TESTS — Provider Scoring ║');
     console.log('╚══════════════════════════════════════════╝\n');
 
     await setupTestProviders();

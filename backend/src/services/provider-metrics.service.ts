@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ PROVIDER METRICS SERVICE — AI Week 1
+ *  MOVZZY PROVIDER METRICS SERVICE — AI Week 1
  * ═══════════════════════════════════════════════════════════
  *  Aggregates historical performance data for a provider
  *  into a ProviderMetrics object used by predictReliability().

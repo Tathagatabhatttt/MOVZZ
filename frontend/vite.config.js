@@ -35,8 +35,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'MOVZZ — Reliability-Orchestrated Mobility',
-        short_name: 'MOVZZ',
+        name: 'MOVZZY — Reliability-Orchestrated Mobility',
+        short_name: 'MOVZZY',
         description: 'Book reliable rides ranked by completion confidence across cab, bike, auto and metro.',
         theme_color: '#0d1d35',
         background_color: '#0d1d35',
@@ -70,7 +70,7 @@ export default defineConfig({
           {
             name: 'Admin Panel',
             short_name: 'Admin',
-            description: 'Open the MOVZZ ops dashboard',
+            description: 'Open the MOVZZY ops dashboard',
             url: '/admin',
             icons: [{ src: '/icon-192.svg', sizes: '192x192' }],
           },

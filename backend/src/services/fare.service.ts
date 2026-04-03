@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ FARE ESTIMATION SERVICE
+ *  MOVZZY FARE ESTIMATION SERVICE
  * ═══════════════════════════════════════════════════════════
  *
  *  Mode-specific fare calculation with full breakdowns.
@@ -402,7 +402,7 @@ export interface DynamicPricingResult {
  * getDynamicMultiplier — AI Week 3 pricing engine.
  *
  * Combines time-of-day surge, demand forecast, weather and traffic into a
- * single multiplier. Hard cap at ×1.2 — MOVZZ never charges more than 20%
+ * single multiplier. Hard cap at ×1.2 — MOVZZY never charges more than 20%
  * above base fare regardless of conditions.
  *
  * Metro is always ×1.0 (fixed government fares).

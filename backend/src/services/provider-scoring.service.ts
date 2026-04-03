@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ PROVIDER SCORING SERVICE — "The Brain"
+ *  MOVZZY PROVIDER SCORING SERVICE — "The Brain"
  * ═══════════════════════════════════════════════════════════
  * 
  *  This is the core intelligence engine that decides which

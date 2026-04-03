@@ -206,7 +206,7 @@ export async function bookRide(req: Request, res: Response): Promise<void> {
         },
         confirmation_message: `Ride confirmed! ${driverName} arriving in ${eta} minutes.`,
         eta_minutes: eta,
-        // Flat fields for MOVZZ booking.service.ts to read
+        // Flat fields for MOVZZY booking.service.ts to read
         driverName,
         driverVehicle,
         driverPhone,

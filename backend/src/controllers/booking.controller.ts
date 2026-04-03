@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ BOOKING CONTROLLER — API Endpoint Handlers
+ *  MOVZZY BOOKING CONTROLLER — API Endpoint Handlers
  * ═══════════════════════════════════════════════════════════
  */
 

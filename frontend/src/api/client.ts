@@ -8,7 +8,7 @@ const apiClient = axios.create({
 
 // Auto-attach the JWT token to every request
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('movzz_token');
+  const token = localStorage.getItem('movzzy_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

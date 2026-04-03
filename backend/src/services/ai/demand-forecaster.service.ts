@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ DEMAND FORECASTER — AI Week 3
+ *  MOVZZY DEMAND FORECASTER — AI Week 3
  * ═══════════════════════════════════════════════════════════
  *  Historical pattern matching to predict rides per zone/hour.
  *  No ML model — pure 4-week rolling average with multipliers.

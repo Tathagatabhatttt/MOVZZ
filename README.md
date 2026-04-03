@@ -1,5 +1,5 @@
 HEAD
-# MOVZZ Prototype Workspace
+# MOVZZY Prototype Workspace
 
 This repository is organized into clear frontend and backend workspaces.
 

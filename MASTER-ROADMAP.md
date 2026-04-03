@@ -1,4 +1,4 @@
-# MOVZZ — Master Roadmap (Combined)
+# MOVZZY — Master Roadmap (Combined)
 > Reliability-Orchestrated Mobility Platform · Chennai, India
 > Last updated: March 11, 2026
 
@@ -210,7 +210,7 @@
 | AI-10 | 🟠 | **Cache Service** — `getOrCompute(key, ttl, fn)` pattern; `CacheKeys` builder; `TTL` constants; `invalidateProviderScores()` | ✅ DONE | `backend/src/services/ai/cache.service.ts` |
 | AI-11 | 🟠 | **ML Data Collection Worker** — triggers on COMPLETED/FAILED/CANCELLED; writes `MLTrainingData` row with context, scores, outcome, distance, hour, day | ✅ DONE | `backend/src/workers/ml-data.worker.ts` |
 | AI-12 | 🟠 | **Prisma schema — AI Week 2 tables** — `ProviderMetricsCache` (Redis-backed aggregated metrics) + `MLTrainingData` (booking outcome training rows) | ✅ DONE | `backend/prisma/schema.prisma` |
-| AI-13 | 🟠 | **Frontend AI-enhanced results screen** — reliability progress bar (green/yellow/red), AI reasoning text (`why`), emoji badges, MOVZZ score chip, animated booking status with orchestration strategy badge | ✅ DONE | `frontend/src/App.jsx` |
+| AI-13 | 🟠 | **Frontend AI-enhanced results screen** — reliability progress bar (green/yellow/red), AI reasoning text (`why`), emoji badges, MOVZZY score chip, animated booking status with orchestration strategy badge | ✅ DONE | `frontend/src/App.jsx` |
 
 ### AI Week 3 — Demand Forecasting + Fair Dynamic Pricing ✅ (5/5)
 
@@ -246,10 +246,10 @@
 |---|----------|------|-------|
 | D1 | 🔴 | **Railway project setup** — create Postgres + Redis + Node.js service; connect GitHub repo; auto-deploy on push | railway.app — ~₹3,000–5,000/month |
 | D2 | 🔴 | **Frontend deploy to Vercel** — import repo; set `VITE_API_URL` to Railway backend URL; SSL auto-configured | Auto-deploys on every git push to main |
-| D3 | 🔴 | **Domain setup** — buy movzz.in; point DNS to Railway/Vercel; SSL configured automatically | ₹500–1,000/year |
+| D3 | 🔴 | **Domain setup** — buy movzzy.in; point DNS to Railway/Vercel; SSL configured automatically | ₹500–1,000/year |
 | D4 | 🔴 | **Production DB migration** — run `npx prisma migrate deploy` on Railway; seed initial data: Chennai zones, transport modes, base fare rates, provider list | Railway console |
 | D5 | 🔴 | **Set all production env vars** — JWT_SECRET (64-char random), Razorpay live keys, Twilio, Resend, Mapbox, Sentry DSNs, Google OAuth callback URL, RAZORPAY_WEBHOOK_SECRET | Railway dashboard env vars |
-| D6 | 🟠 | **Razorpay production activation** — switch test → live keys; complete KYC (2–3 business days); set webhook `https://movzz.in/api/v1/payments/webhook`; test ₹1 live transaction | Razorpay dashboard |
+| D6 | 🟠 | **Razorpay production activation** — switch test → live keys; complete KYC (2–3 business days); set webhook `https://movzzy.in/api/v1/payments/webhook`; test ₹1 live transaction | Razorpay dashboard |
 | D7 | 🟠 | **Seed first admin user** — `UPDATE "User" SET role = 'admin' WHERE phone = '+91...'` via Prisma | Production DB |
 
 ### Testing
@@ -311,4 +311,4 @@ POST-LAUNCH:
 
 ---
 
-*MOVZZ Master Roadmap · March 13, 2026 · **74/108 tasks done (69%)***
+*MOVZZY Master Roadmap · March 13, 2026 · **74/108 tasks done (69%)***

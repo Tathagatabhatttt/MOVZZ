@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ QUOTES SERVICE — Ride Options & Pricing Engine
+ *  MOVZZY QUOTES SERVICE — Ride Options & Pricing Engine
  * ═══════════════════════════════════════════════════════════
  *
  *  Generates ride quotes across all transport modes.
@@ -28,7 +28,7 @@ export interface RideQuote {
     price: number;          // ₹ in rupees
     eta: number;            // minutes
     reliability: number;    // 0-100
-    score: number;          // MOVZZ composite score 0-100
+    score: number;          // MOVZZY composite score 0-100
     logo: string;
     surge: boolean;
     source: 'simulated' | 'nammayatri';
@@ -280,7 +280,7 @@ const CHENNAI_METRO_ROUTES: MetroRoute[] = [
     },
 ];
 
-// ─── MOVZZ Scoring Algorithm ────────────────────────────
+// ─── MOVZZY Scoring Algorithm ────────────────────────────
 
 function calculateMovzzScore(quote: {
     reliability: number;
@@ -547,7 +547,7 @@ export async function getQuotes(params: {
         // 3. Namma Yatri integration removed
     }
 
-    // ─── Sort by MOVZZ score (descending) ───────────────
+    // ─── Sort by MOVZZY score (descending) ───────────────
     allQuotes.sort((a, b) => b.score - a.score);
 
     // ─── Assign tags (Best Match, Cheapest, etc.) ───────

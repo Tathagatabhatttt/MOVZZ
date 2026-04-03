@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ ADMIN CONTROLLER — Dashboard & Management API
+ *  MOVZZY ADMIN CONTROLLER — Dashboard & Management API
  * ═══════════════════════════════════════════════════════════
  * 
  *  Admin endpoints for:
@@ -350,6 +350,7 @@ export async function getProviderMetrics(req: Request, res: Response): Promise<v
             return;
         }
 
+        const totalEarningsPaise = metrics.reduce((s, m) => s + (m.totalRevenue || 0), 0);
         res.json({
             success: true,
             data: {
@@ -363,6 +364,8 @@ export async function getProviderMetrics(req: Request, res: Response): Promise<v
                     avgReliability: metrics.length > 0
                         ? metrics.reduce((s, m) => s + m.reliabilityScore, 0) / metrics.length
                         : provider.reliability,
+                    totalEarningsPaise,
+                    totalEarningsRupees: Math.round(totalEarningsPaise / 100),
                 },
             },
         });
@@ -399,6 +402,70 @@ export async function getActiveBookings(_req: Request, res: Response): Promise<v
     } catch (error) {
         console.error('Active bookings error:', error);
         res.status(500).json({ success: false, error: 'Failed to get active bookings' });
+    }
+}
+
+// ─── AI Stats (AI Week 4) ────────────────────────────────
+
+export async function getAiStats(_req: Request, res: Response): Promise<void> {
+    try {
+        const now = new Date();
+        const currentHour = new Date(now);
+        currentHour.setMinutes(0, 0, 0);
+
+        const [
+            trainingDataCount,
+            strategyDistribution,
+            forecastAccuracyAgg,
+            latestDemand,
+        ] = await Promise.all([
+            prisma.mLTrainingData.count(),
+            prisma.booking.groupBy({
+                by: ['orchestrationStrategy'],
+                _count: { id: true },
+                where: { orchestrationStrategy: { not: null } },
+            }),
+            prisma.demandForecast.aggregate({
+                _avg: { forecastAccuracy: true },
+                where: { forecastAccuracy: { not: null } },
+            }),
+            prisma.demandForecast.findMany({
+                where: {
+                    forecastHour: {
+                        gte: new Date(currentHour.getTime() - 60 * 60 * 1000),
+                        lt:  new Date(currentHour.getTime() + 60 * 60 * 1000),
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+                distinct: ['zone'],
+            }),
+        ]);
+
+        const totalWithStrategy = strategyDistribution.reduce((s, r) => s + r._count.id, 0);
+        const strategyData = strategyDistribution.map(r => ({
+            strategy: r.orchestrationStrategy,
+            count: r._count.id,
+            pct: totalWithStrategy > 0 ? Math.round((r._count.id / totalWithStrategy) * 100) : 0,
+        }));
+
+        const demandByZone = latestDemand.map(d => {
+            const rides = d.predictedRides;
+            const level = rides > 15 ? 'VERY_HIGH' : rides > 7 ? 'HIGH' : rides > 3 ? 'NORMAL' : 'LOW';
+            return { zone: d.zone, predictedRides: rides, demandLevel: level };
+        });
+
+        res.json({
+            success: true,
+            data: {
+                trainingDataCount,
+                strategyDistribution: strategyData,
+                avgForecastAccuracy: forecastAccuracyAgg._avg.forecastAccuracy ?? null,
+                demandByZone,
+            },
+        });
+    } catch (error) {
+        console.error('AI stats error:', error);
+        res.status(500).json({ success: false, error: 'Failed to get AI stats' });
     }
 }
 

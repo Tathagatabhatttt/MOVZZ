@@ -42,7 +42,7 @@ function getTagLabel(tag) {
   return tag;
 }
 function authHeaders() {
-  const token = localStorage.getItem('movzz_token');
+  const token = localStorage.getItem('movzzy_token');
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 async function apiFetch(path, opts = {}) {
@@ -318,7 +318,7 @@ function WalletScreen({ isActive, onNotif }) {
               <input
                 value={promoInput}
                 onChange={e => setPromoInput(e.target.value.toUpperCase())}
-                placeholder="MOVZZ50"
+                placeholder="MOVZZY50"
                 style={{
                   flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb',
                   borderRadius: 8, fontSize: 14, letterSpacing: '0.05em',
@@ -766,7 +766,7 @@ function App() {
     const signature = params.get('razorpay_signature');
     if (!paymentId || !linkId || !refId || !signature) return;
     window.history.replaceState({}, '', window.location.pathname);
-    const token = localStorage.getItem('movzz_token');
+    const token = localStorage.getItem('movzzy_token');
     if (!token) return;
     setPaymentPending(true);
     fetch(`${API_BASE}/payments/verify`, {
@@ -787,7 +787,7 @@ function App() {
   // ── Load photo on auth ────────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return;
-    const token = localStorage.getItem('movzz_token');
+    const token = localStorage.getItem('movzzy_token');
     fetch(`${API_BASE}/upload/users/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => { if (d.success && d.data.photoUrl) setPhotoUrl(d.data.photoUrl); }).catch(() => {});
     apiFetch('/users/me/favorites').then(d => { if (d.success) setFavorites(d.data); });
@@ -806,7 +806,7 @@ function App() {
     const handler = (data) => {
       if (data.state === 'CONFIRMED') {
         showNotif('Driver confirmed! On the way.');
-        if (Notification.permission === 'granted') new Notification('MOVZZ', { body: 'Your driver is confirmed and on the way!' });
+        if (Notification.permission === 'granted') new Notification('MOVZZY', { body: 'Your driver is confirmed and on the way!' });
       } else if (data.state === 'IN_PROGRESS') {
         showNotif('Your ride has started.');
       } else if (data.state === 'COMPLETED') {
@@ -844,7 +844,7 @@ function App() {
   }, [loginWithOAuthToken, connectSocket]);
 
   useEffect(() => {
-    const token = localStorage.getItem('movzz_token');
+    const token = localStorage.getItem('movzzy_token');
     if (token) connectSocket(token);
     return () => disconnectSocket();
   }, [connectSocket, disconnectSocket]);
@@ -902,7 +902,7 @@ function App() {
     if (!file) return;
     setPhotoUploading(true);
     try {
-      const token = localStorage.getItem('movzz_token');
+      const token = localStorage.getItem('movzzy_token');
       const presignRes = await fetch(`${API_BASE}/upload/presign`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ purpose: 'profile', contentType: file.type }),
@@ -940,7 +940,7 @@ function App() {
     if (booking?.id && import.meta.env.VITE_RAZORPAY_KEY_ID) {
       setPaymentPending(true); setPaymentError(null);
       try {
-        const token = localStorage.getItem('movzz_token');
+        const token = localStorage.getItem('movzzy_token');
         const res = await fetch(`${API_BASE}/payments/create-link`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -999,7 +999,7 @@ function App() {
       const success = await verifyOTP(otpCode);
       if (success) {
         setOtpCode('');
-        const token = localStorage.getItem('movzz_token');
+        const token = localStorage.getItem('movzzy_token');
         if (token) connectSocket(token);
         moveTo("transport");
       }
@@ -1025,7 +1025,7 @@ function App() {
         {/* Status bar */}
         <header className="status-row">
           <span>9:41</span>
-          <span>MOVZZ</span>
+          <span>MOVZZY</span>
           {isAuthenticated ? (
             <button
               onClick={() => photoInputRef.current?.click()}
@@ -1052,9 +1052,9 @@ function App() {
             <div className="brand-mark"><span>MOV</span><span>ZZ</span></div>
             <p className="kicker">Reliability-Orchestrated Mobility</p>
             <h1>Your ride should feel certain before it starts.</h1>
-            <p className="copy">MOVZZ ranks transport options by completion confidence, dispatch speed, and fair pricing.</p>
+            <p className="copy">MOVZZY ranks transport options by completion confidence, dispatch speed, and fair pricing.</p>
             <div className="landing-editorial">
-              <h3>Why MOVZZ</h3>
+              <h3>Why MOVZZY</h3>
               <ul>
                 <li>One booking flow across cab, bike taxi, auto, and metro.</li>
                 <li>Automatic fallback if a provider fails after confirmation.</li>
@@ -1082,7 +1082,7 @@ function App() {
         {/* ── AUTH ── */}
         <section className={`screen ${screen === "auth" && isHomeScreen ? "is-active" : ""}`}>
           <p className="kicker">Authentication</p>
-          <h2>Sign in to MOVZZ</h2>
+          <h2>Sign in to MOVZZY</h2>
           <p className="copy">Secure access with enterprise-grade onboarding flow.</p>
           <div className="auth-flow" style={{ marginTop: '2rem' }}>
             {authError && <p style={{ color: 'var(--warn)', marginBottom: '1rem' }}>{authError}</p>}
@@ -1145,7 +1145,7 @@ function App() {
         <section className={`screen ${screen === "destination" && isHomeScreen ? "is-active" : ""}`} style={{ paddingBottom: showBottomNav ? 72 : undefined }}>
           <p className="kicker">Step 2</p>
           <h2>Set pickup and destination</h2>
-          <p className="copy">MOVZZ will return ranked options with reliability rationale.</p>
+          <p className="copy">MOVZZY will return ranked options with reliability rationale.</p>
           <div className="route-editor">
             <div className="route-pin source" />
             <div className="route-pin destination" />
@@ -1336,7 +1336,7 @@ function App() {
                     {item.score != null && (
                       <div style={{ marginTop: 6 }}>
                         <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--brand)', color: '#fff', borderRadius: 99, padding: '2px 7px', letterSpacing: '0.04em' }}>
-                          MOVZZ {item.score}/100
+                          MOVZZY {item.score}/100
                         </span>
                       </div>
                     )}

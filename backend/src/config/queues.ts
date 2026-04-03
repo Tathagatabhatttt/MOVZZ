@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ BULLMQ QUEUE SINGLETONS
+ *  MOVZZY BULLMQ QUEUE SINGLETONS
  * ═══════════════════════════════════════════════════════════
  *  Three queues, all backed by the same Redis instance that
  *  ioredis uses. Workers are registered in index.ts.

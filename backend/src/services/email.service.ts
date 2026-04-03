@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ EMAIL SERVICE — Transactional Emails via Resend
+ *  MOVZZY EMAIL SERVICE — Transactional Emails via Resend
  * ═══════════════════════════════════════════════════════════
  *
  *  3 emails:
@@ -19,7 +19,7 @@ const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 
-const FROM = `MOVZZ <${process.env.RESEND_FROM_EMAIL || 'noreply@movzz.in'}>`;
+const FROM = `MOVZZY <${process.env.RESEND_FROM_EMAIL || 'noreply@movzzy.in'}>`;
 
 function isReady(): boolean {
     return !!resend;
@@ -34,7 +34,7 @@ function layout(content: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MOVZZ</title>
+  <title>MOVZZY</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 0;">
@@ -58,8 +58,8 @@ function layout(content: string): string {
         <tr>
           <td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;">
             <p style="margin:0;font-size:11px;color:#94a3b8;text-align:center;">
-              MOVZZ Reliability-Orchestrated Mobility · Chennai, India<br/>
-              You received this because you have an active MOVZZ account.
+              MOVZZY Reliability-Orchestrated Mobility · Chennai, India<br/>
+              You received this because you have an active MOVZZY account.
             </p>
           </td>
         </tr>
@@ -108,7 +108,7 @@ export async function sendOTPEmail(toEmail: string, otp: string): Promise<void> 
     await resend!.emails.send({
         from: FROM,
         to: [toEmail],
-        subject: `${otp} is your MOVZZ verification code`,
+        subject: `${otp} is your MOVZZY verification code`,
         html,
     });
 
@@ -137,7 +137,7 @@ export async function sendBookingConfirmation(params: ConfirmationParams): Promi
     const html = layout(`
         <h1 style="margin:0 0 6px;font-size:22px;color:#0f172a;">Your ride is confirmed!</h1>
         <p style="margin:0 0 24px;font-size:15px;color:#64748b;">
-          Hi ${params.userName || 'there'}, your MOVZZ booking has been confirmed and a driver is on the way.
+          Hi ${params.userName || 'there'}, your MOVZZY booking has been confirmed and a driver is on the way.
         </p>
 
         <div style="background:#f8fafc;border-radius:8px;padding:20px;margin-bottom:24px;">
@@ -153,7 +153,7 @@ export async function sendBookingConfirmation(params: ConfirmationParams): Promi
 
         <div style="background:#d1fae5;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
           <p style="margin:0;font-size:13px;color:#065f46;">
-            <strong>Need help?</strong> Reply to this email or open the MOVZZ app to track your ride in real time.
+            <strong>Need help?</strong> Reply to this email or open the MOVZZY app to track your ride in real time.
           </p>
         </div>
 
@@ -190,7 +190,7 @@ export async function sendBookingCancellation(params: CancellationParams): Promi
     const html = layout(`
         <h1 style="margin:0 0 6px;font-size:22px;color:#0f172a;">Booking cancelled</h1>
         <p style="margin:0 0 24px;font-size:15px;color:#64748b;">
-          Hi ${params.userName || 'there'}, your MOVZZ booking has been cancelled.
+          Hi ${params.userName || 'there'}, your MOVZZY booking has been cancelled.
           ${params.reason ? `Reason: ${params.reason}.` : ''}
         </p>
 
@@ -204,7 +204,7 @@ export async function sendBookingCancellation(params: CancellationParams): Promi
 
         <div style="background:#fee2e2;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
           <p style="margin:0;font-size:13px;color:#991b1b;">
-            No charges have been made. Book a new ride anytime from the MOVZZ app.
+            No charges have been made. Book a new ride anytime from the MOVZZY app.
           </p>
         </div>
     `);
@@ -259,14 +259,14 @@ export async function sendCompensationCredit(params: CompensationParams): Promis
         </div>
 
         <p style="margin:0;font-size:13px;color:#64748b;">
-          We're constantly improving our reliability. Thank you for choosing MOVZZ.
+          We're constantly improving our reliability. Thank you for choosing MOVZZY.
         </p>
     `);
 
     await resend!.emails.send({
         from: FROM,
         to: [params.toEmail],
-        subject: `₹${params.amountRupees} credit added to your MOVZZ wallet`,
+        subject: `₹${params.amountRupees} credit added to your MOVZZY wallet`,
         html,
     });
 

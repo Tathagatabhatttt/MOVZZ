@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ ORCHESTRATION SERVICE — AI Week 1
+ *  MOVZZY ORCHESTRATION SERVICE — AI Week 1
  * ═══════════════════════════════════════════════════════════
  *  Decides HOW to dispatch providers based on the top
  *  reliability score — not just WHO to dispatch.

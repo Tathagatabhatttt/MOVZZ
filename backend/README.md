@@ -1,4 +1,4 @@
-# 🚗 MOVZZ Backend — Complete Documentation
+# 🚗 MOVZZY Backend — Complete Documentation
 
 > **Version:** 1.0.0  
 > **Last Updated:** February 2026  
@@ -8,7 +8,7 @@
 
 ## 📑 Table of Contents
 
-1. [What is MOVZZ?](#-what-is-movzz)
+1. [What is MOVZZY?](#-what-is-movzzy)
 2. [Prerequisites (What You Need Before Starting)](#-prerequisites-what-you-need-before-starting)
 3. [Installation (Step-by-Step)](#-installation-step-by-step)
 4. [Running the Server](#-running-the-server)
@@ -29,9 +29,9 @@
 
 ---
 
-## 🚗 What is MOVZZ?
+## 🚗 What is MOVZZY?
 
-MOVZZ is a **ride-booking platform** (like Uber/Ola) built from scratch. The backend handles:
+MOVZZY is a **ride-booking platform** (like Uber/Ola) built from scratch. The backend handles:
 
 - **User authentication** via OTP (no passwords)
 - **Booking management** with a full state machine
@@ -40,7 +40,7 @@ MOVZZ is a **ride-booking platform** (like Uber/Ola) built from scratch. The bac
 - **User compensation** (₹100 credits for failed bookings)
 - **Admin dashboard** for operations management
 
-**Key Differentiator:** MOVZZ has a "HIGH_RELIABILITY" trip type where only drivers with 90%+ success rates are eligible — ensuring premium service quality.
+**Key Differentiator:** MOVZZY has a "HIGH_RELIABILITY" trip type where only drivers with 90%+ success rates are eligible — ensuring premium service quality.
 
 ---
 
@@ -66,7 +66,7 @@ Before you do ANYTHING, make sure you have these installed:
 ### Step 1: Clone the Repository
 ```bash
 git clone <your-repo-url>
-cd MOVZZ/backend
+cd MOVZZY/backend
 ```
 
 ### Step 2: Install Dependencies
@@ -80,7 +80,7 @@ This installs **all** packages listed in `package.json`. It will create a `node_
 Open the `.env` file and update the `DATABASE_URL` with YOUR PostgreSQL password:
 
 ```env
-DATABASE_URL="postgresql://postgres:YOUR_PASSWORD_HERE@localhost:5432/movzz_db?schema=public"
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD_HERE@localhost:5432/movzzy_db?schema=public"
 ```
 
 **Breaking this URL down:**
@@ -91,19 +91,19 @@ DATABASE_URL="postgresql://postgres:YOUR_PASSWORD_HERE@localhost:5432/movzz_db?s
 | `YOUR_PASSWORD_HERE` | The password YOU set during PostgreSQL installation |
 | `localhost` | Database is on your machine |
 | `5432` | Default PostgreSQL port |
-| `movzz_db` | Name of the database (we'll create it next) |
+| `movzzy_db` | Name of the database (we'll create it next) |
 | `?schema=public` | Use the default schema |
 
 ### Step 4: Create the Database
 
 **On Windows (PowerShell):**
 ```powershell
-$env:PGPASSWORD='YOUR_PASSWORD'; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U postgres movzz_db
+$env:PGPASSWORD='YOUR_PASSWORD'; & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -U postgres movzzy_db
 ```
 
 **On Mac/Linux:**
 ```bash
-createdb -U postgres movzz_db
+createdb -U postgres movzzy_db
 ```
 
 **If you get "database already exists"** — that's fine, skip this step.
@@ -146,7 +146,7 @@ This starts the server with **hot-reload** — every time you save a file, the s
 You should see:
 ```
 ╔══════════════════════════════════════════╗
-║         🚗 MOVZZ API SERVER 🚗          ║
+║         🚗 MOVZZY API SERVER 🚗          ║
 ╠══════════════════════════════════════════╣
 ║  Status:  RUNNING                        ║
 ║  Port:    3000                           ║
@@ -419,7 +419,7 @@ backend/
 | `vehicleModel` | String? | e.g., "Maruti Swift" |
 | `vehiclePlate` | String? | e.g., "DL01AB1234" |
 | `apiEndpoint` | String? | For fleet APIs (future use) |
-| `commissionRate` | Float | How much MOVZZ takes (default 10%) |
+| `commissionRate` | Float | How much MOVZZY takes (default 10%) |
 | `paymentTerms` | String | When they get paid (default "T+2") |
 | `active` | Boolean | Whether they're currently available |
 | `pausedUntil` | DateTime? | If paused, when they become active again |
@@ -492,7 +492,7 @@ Tracks payments to providers. Status goes: PENDING → PROCESSING → COMPLETED.
 |--------|------|-------------|
 | `providerId` | String | FK → Provider |
 | `totalRevenue` | Int | Gross amount (paise) |
-| `commissionAmount` | Int | MOVZZ's cut (paise) |
+| `commissionAmount` | Int | MOVZZY's cut (paise) |
 | `netPayout` | Int | What the provider gets (paise) |
 | `status` | Enum | PENDING / PROCESSING / COMPLETED / FAILED |
 
@@ -1124,11 +1124,11 @@ All configuration is in the `.env` file:
 ```env
 # ─── Database ────────────────────────────────────────────
 # PostgreSQL connection string
-DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/movzz_db?schema=public"
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/movzzy_db?schema=public"
 
 # ─── Authentication ──────────────────────────────────────
 # Secret key for signing JWT tokens (change this in production!)
-JWT_SECRET=movzz-super-secret-jwt-key-change-in-production-2026
+JWT_SECRET=movzzy-super-secret-jwt-key-change-in-production-2026
 
 # ─── Server ──────────────────────────────────────────────
 PORT=3000                    # HTTP port
@@ -1198,7 +1198,7 @@ curl http://localhost:3000/api/v1/admin/dashboard \
 ### Option 3: Postman (Recommended for Regular Testing)
 
 1. **Download Postman** from [postman.com](https://www.postman.com/downloads/)
-2. Create a new Collection called "MOVZZ API"
+2. Create a new Collection called "MOVZZY API"
 3. Add requests for each endpoint
 4. In the **Authorization** tab of each protected request:
    - Type: **Bearer Token**
@@ -1234,7 +1234,7 @@ npm run dev
 - Mac: `brew services start postgresql`
 - Linux: `sudo systemctl start postgresql`
 
-### `database "movzz_db" does not exist`
+### `database "movzzy_db" does not exist`
 **Cause:** You haven't created the database yet.  
 **Fix:** See [Step 4 of Installation](#step-4-create-the-database).
 
@@ -1352,7 +1352,7 @@ See the [Recovery & Compensation section](#-recovery--compensation-system) above
 
 ### `src/utils/otp.ts` — OTP Generator
 - `generateOTP()` — Returns a random 6-digit string (e.g., "482937")
-- `generateReferralCode(prefix?)` — Returns a code like "USER6729" or "MOVZZ1234"
+- `generateReferralCode(prefix?)` — Returns a code like "USER6729" or "MOVZZY1234"
 
 ### `src/utils/phone.ts` — Phone Number Utilities
 - `isValidIndianPhone(phone)` — Checks if it's a valid Indian mobile number (starts with 6-9, 10 digits)
@@ -1373,4 +1373,4 @@ Uses Zod schema to validate:
 
 ---
 
-*Built with 💪 by the MOVZZ team*
+*Built with 💪 by the MOVZZY team*

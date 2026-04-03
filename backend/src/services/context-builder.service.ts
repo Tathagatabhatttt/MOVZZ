@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ CONTEXT BUILDER — AI Week 1
+ *  MOVZZY CONTEXT BUILDER — AI Week 1
  * ═══════════════════════════════════════════════════════════
  *  Builds a RideContext from booking coordinates.
  *  Context feeds into predictReliability() for each provider.

@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ AI TYPES — Week 1
+ *  MOVZZY AI TYPES — Week 1
  * ═══════════════════════════════════════════════════════════
  *  Shared types for context-aware provider scoring,
  *  orchestration strategies, and failure detection.

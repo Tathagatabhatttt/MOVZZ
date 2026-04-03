@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ FAILURE DETECTOR — AI Week 1
+ *  MOVZZY FAILURE DETECTOR — AI Week 1
  * ═══════════════════════════════════════════════════════════
  *  Background risk monitor for in-flight bookings.
  *

@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ INTEGRATION TESTS — Booking API
+ *  MOVZZY INTEGRATION TESTS — Booking API
  * ═══════════════════════════════════════════════════════════
  *
  *  Tests the full booking flow end-to-end:
@@ -122,7 +122,7 @@ async function teardown() {
 
 async function runTests() {
     console.log('\n╔══════════════════════════════════════════╗');
-    console.log('║  🧪 MOVZZ INTEGRATION TESTS — Booking   ║');
+    console.log('║  🧪 MOVZZY INTEGRATION TESTS — Booking   ║');
     console.log('╚══════════════════════════════════════════╝\n');
 
     await setup();

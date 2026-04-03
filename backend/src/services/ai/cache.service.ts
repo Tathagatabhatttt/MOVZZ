@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ AI CACHE SERVICE — Week 2
+ *  MOVZZY AI CACHE SERVICE — Week 2
  * ═══════════════════════════════════════════════════════════
  *  Redis-backed getOrCompute pattern for expensive AI results.
  *  TTLs are tuned per data type:

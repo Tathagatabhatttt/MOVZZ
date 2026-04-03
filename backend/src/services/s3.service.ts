@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ S3 SERVICE — File Storage via AWS S3
+ *  MOVZZY S3 SERVICE — File Storage via AWS S3
  * ═══════════════════════════════════════════════════════════
  *
  *  Pattern: presigned URLs — the browser uploads directly to S3.

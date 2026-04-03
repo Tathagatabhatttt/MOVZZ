@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- *  MOVZZ METRO SERVICE
+ *  MOVZZY METRO SERVICE
  * ═══════════════════════════════════════════════════════════
  *
  *  Chennai Metro-specific fare calculation and line data.

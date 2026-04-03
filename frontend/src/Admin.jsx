@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 const API = `${API_BASE}/admin`;
 
 function authHeaders() {
-  const token = localStorage.getItem('movzz_token');
+  const token = localStorage.getItem('movzzy_token');
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
@@ -339,6 +339,7 @@ function ProvidersTab() {
   const [form, setForm] = useState({ name: '', phone: '', type: 'INDIVIDUAL_DRIVER', vehicleModel: '', vehiclePlate: '' });
   const [saving, setSaving] = useState(false);
   const [actioning, setActioning] = useState(null);
+  const [analyticsId, setAnalyticsId] = useState(null);
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -445,18 +446,26 @@ function ProvidersTab() {
                 </span>
               )},
               { key: 'action', label: '', render: r => (
-                <Btn
-                  variant={r.active ? 'danger' : 'ok'}
-                  small
-                  disabled={actioning === r.id}
-                  onClick={() => toggleActive(r)}
-                >
-                  {actioning === r.id ? '…' : r.active ? 'Pause' : 'Resume'}
-                </Btn>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Btn
+                    variant={r.active ? 'danger' : 'ok'}
+                    small
+                    disabled={actioning === r.id}
+                    onClick={() => toggleActive(r)}
+                  >
+                    {actioning === r.id ? '…' : r.active ? 'Pause' : 'Resume'}
+                  </Btn>
+                  <Btn variant="secondary" small onClick={() => setAnalyticsId(id => id === r.id ? null : r.id)}>
+                    {analyticsId === r.id ? 'Hide' : 'Analytics'}
+                  </Btn>
+                </div>
               )},
             ]}
             rows={providers}
           />
+        )}
+        {analyticsId && (
+          <ProviderAnalyticsPanel providerId={analyticsId} onClose={() => setAnalyticsId(null)} />
         )}
       </Section>
     </div>
@@ -638,6 +647,131 @@ function LiveMapTab() {
   );
 }
 
+// ─── AI Intel tab ────────────────────────────────────────
+const DEMAND_COLORS = { LOW: '#6b7280', NORMAL: '#2563eb', HIGH: '#d97706', VERY_HIGH: '#dc2626' };
+
+function AiIntelTab() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch('/ai-stats').then(d => {
+      if (d.success) setData(d.data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <p style={{ color: 'var(--ink-700)' }}>Loading AI stats…</p>;
+  if (!data) return <p style={{ color: '#dc2626' }}>Failed to load AI stats.</p>;
+
+  const totalStrategies = data.strategyDistribution.reduce((s, r) => s + r.count, 0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Section title="Model Health">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <StatCard label="Training Samples" value={data.trainingDataCount.toLocaleString()} />
+          <StatCard label="Avg Forecast Accuracy"
+            value={data.avgForecastAccuracy != null
+              ? `${(data.avgForecastAccuracy * 100).toFixed(1)}%`
+              : 'Pending'} />
+          <StatCard label="Strategies Tracked" value={totalStrategies.toLocaleString()} />
+        </div>
+      </Section>
+
+      <Section title="Dispatch Strategy Distribution">
+        {data.strategyDistribution.length === 0 ? (
+          <p style={{ color: 'var(--ink-700)', fontSize: 13 }}>No bookings with AI dispatch yet.</p>
+        ) : (
+          <Table
+            cols={[
+              { key: 'strategy', label: 'Strategy' },
+              { key: 'count', label: 'Bookings' },
+              { key: 'pct', label: 'Share', render: r => (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, height: 6, background: '#e5e7eb', borderRadius: 3, maxWidth: 80 }}>
+                    <span style={{ display: 'block', height: '100%', width: `${r.pct}%`, background: 'var(--brand)', borderRadius: 3 }} />
+                  </span>
+                  {r.pct}%
+                </span>
+              )},
+            ]}
+            rows={data.strategyDistribution}
+          />
+        )}
+      </Section>
+
+      <Section title="Current Demand by Zone">
+        {data.demandByZone.length === 0 ? (
+          <p style={{ color: 'var(--ink-700)', fontSize: 13 }}>Run nightly demand worker to populate forecasts.</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+            {data.demandByZone.map(z => (
+              <div key={z.zone} style={{
+                background: '#fff', border: `2px solid ${DEMAND_COLORS[z.demandLevel] || '#e5e7eb'}`,
+                borderRadius: 10, padding: '10px 14px',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-700)' }}>{z.zone.replace(/_/g, ' ')}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{z.predictedRides}</div>
+                <div style={{ fontSize: 11, color: DEMAND_COLORS[z.demandLevel] || '#6b7280', fontWeight: 700, marginTop: 2 }}>
+                  {z.demandLevel}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+// ─── Provider Analytics panel (inline in Providers tab) ──
+function ProviderAnalyticsPanel({ providerId, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch(`/providers/${providerId}/metrics?days=30`).then(d => {
+      if (d.success) setData(d.data);
+      setLoading(false);
+    });
+  }, [providerId]);
+
+  if (loading) return <p style={{ padding: '8px 0', fontSize: 13, color: 'var(--ink-700)' }}>Loading analytics…</p>;
+  if (!data) return <p style={{ fontSize: 13, color: '#dc2626' }}>Failed to load.</p>;
+
+  const { summary, metrics } = data;
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>30-Day Analytics</span>
+        <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--ink-700)' }}>✕</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+        <StatCard label="Total Rides" value={summary.totalBookings} />
+        <StatCard label="Success Rate" value={summary.totalBookings > 0 ? `${((summary.successfulBookings / summary.totalBookings) * 100).toFixed(0)}%` : '—'} />
+        <StatCard label="Avg Reliability" value={`${(summary.avgReliability * 100).toFixed(0)}%`} />
+        <StatCard label="Earnings" value={`₹${summary.totalEarningsRupees?.toLocaleString() ?? '—'}`} />
+      </div>
+      {metrics.length > 0 ? (
+        <Table
+          cols={[
+            { key: 'date', label: 'Date', render: r => new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) },
+            { key: 'totalBookings', label: 'Rides' },
+            { key: 'successfulBookings', label: 'Success' },
+            { key: 'reliabilityScore', label: 'Reliability', render: r => `${((r.reliabilityScore || 0) * 100).toFixed(0)}%` },
+            { key: 'totalRevenue', label: 'Revenue', render: r => `₹${Math.round((r.totalRevenue || 0) / 100)}` },
+          ]}
+          rows={metrics}
+        />
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--ink-700)' }}>No daily metrics recorded yet.</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin App ──────────────────────────────────────
 const TABS = [
   { id: 'dashboard',   label: 'Dashboard' },
@@ -645,13 +779,14 @@ const TABS = [
   { id: 'escalations', label: 'Escalations' },
   { id: 'providers',   label: 'Providers' },
   { id: 'metrics',     label: 'Metrics' },
+  { id: 'ai',          label: 'AI Intel' },
 ];
 
 const SOCKET_URL = 'http://localhost:3000';
 
 export default function Admin() {
   const [tab, setTab] = useState('dashboard');
-  const [token, setToken] = useState(localStorage.getItem('movzz_token') || '');
+  const [token, setToken] = useState(localStorage.getItem('movzzy_token') || '');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const socketRef = useRef(null);
 
@@ -672,7 +807,7 @@ export default function Admin() {
         background: 'var(--bg)', fontFamily: 'inherit',
       }}>
         <div style={{ background: '#fff', border: '1px solid var(--line)', borderRadius: 16, padding: 32, width: 360 }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>MOVZZ Admin</h2>
+          <h2 style={{ margin: '0 0 4px', fontSize: 22 }}>MOVZZY Admin</h2>
           <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--ink-700)' }}>
             Paste your JWT token to continue.
           </p>
@@ -686,13 +821,13 @@ export default function Admin() {
             onChange={e => setToken(e.target.value)}
           />
           <Btn
-            onClick={() => { localStorage.setItem('movzz_token', token); setToken(token); }}
+            onClick={() => { localStorage.setItem('movzzy_token', token); setToken(token); }}
             disabled={!token.trim()}
           >
             Enter Admin Panel
           </Btn>
           <p style={{ fontSize: 12, color: 'var(--ink-700)', marginTop: 12 }}>
-            Sign in on the main app first, then copy the token from DevTools → Application → Local Storage → <code>movzz_token</code>.
+            Sign in on the main app first, then copy the token from DevTools → Application → Local Storage → <code>movzzy_token</code>.
           </p>
         </div>
       </div>
@@ -713,7 +848,7 @@ export default function Admin() {
           <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 10, opacity: 0.6 }}>Admin Panel</span>
         </div>
         <button
-          onClick={() => { localStorage.removeItem('movzz_token'); setToken(''); }}
+          onClick={() => { localStorage.removeItem('movzzy_token'); setToken(''); }}
           style={{
             background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
             color: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 12,
@@ -768,6 +903,7 @@ export default function Admin() {
           {tab === 'escalations' && <EscalationsTab refreshSignal={refreshSignal} />}
           {tab === 'providers'   && <ProvidersTab />}
           {tab === 'metrics'     && <MetricsTab />}
+          {tab === 'ai'          && <AiIntelTab />}
         </main>
       </div>
     </div>
