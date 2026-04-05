@@ -33,6 +33,7 @@ import paymentRoutes from './routes/payment.routes';
 import providerRoutes from './routes/provider.routes';
 import userRoutes from './routes/user.routes';
 import promoRoutes from './routes/promo.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 import shareRoutes from './routes/share.routes';
 import mockProviderRoutes from './routes/mock-provider.routes';
 import prisma from './config/database';
@@ -121,6 +122,7 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/provider', providerRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/promo', promoRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/share', shareRoutes);
 app.use('/api/v1/mock-providers', mockProviderRoutes);
 

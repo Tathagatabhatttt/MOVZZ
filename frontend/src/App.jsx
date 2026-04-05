@@ -230,14 +230,45 @@ function WalletScreen({ isActive, onNotif }) {
   const [promoInput, setPromoInput] = useState('');
   const [promoResult, setPromoResult] = useState(null);
   const [promoError, setPromoError] = useState('');
+  const [passData, setPassData] = useState(null);
+  const [passActivating, setPassActivating] = useState(false);
 
   useEffect(() => {
     if (!isActive) return;
     setLoading(true);
-    apiFetch('/users/me/wallet').then(d => {
-      if (d.success) setWallet(d.data);
+    Promise.all([
+      apiFetch('/users/me/wallet'),
+      apiFetch('/subscriptions/me'),
+    ]).then(([walletRes, passRes]) => {
+      if (walletRes.success) setWallet(walletRes.data);
+      if (passRes.success) setPassData(passRes.data);
     }).finally(() => setLoading(false));
   }, [isActive]);
+
+  async function activatePass(plan) {
+    setPassActivating(true);
+    const d = await apiFetch('/subscriptions/activate', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    });
+    if (d.success) {
+      onNotif(`${d.data.message}`);
+      const passRes = await apiFetch('/subscriptions/me');
+      if (passRes.success) setPassData(passRes.data);
+    } else {
+      onNotif(d.error || 'Could not activate pass');
+    }
+    setPassActivating(false);
+  }
+
+  async function cancelPass() {
+    const d = await apiFetch('/subscriptions/cancel', { method: 'POST' });
+    if (d.success) {
+      onNotif(d.message);
+      const passRes = await apiFetch('/subscriptions/me');
+      if (passRes.success) setPassData(passRes.data);
+    }
+  }
 
   function copyReferral() {
     if (!wallet?.referralCode) return;
@@ -269,6 +300,57 @@ function WalletScreen({ isActive, onNotif }) {
         <p style={{ textAlign: 'center', color: '#9ca3af', padding: 20 }}>Loading...</p>
       ) : wallet ? (
         <>
+          {/* MOVZZY Pass */}
+          {passData?.active ? (
+            <div style={{
+              background: 'linear-gradient(135deg, #92400e, #b45309)',
+              borderRadius: 16, padding: 16, color: '#fff', marginBottom: 12,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Active Pass</div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>✦ {passData.name}</div>
+                  <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+                    {passData.discountPercent}% off every ride · No surge
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>Expires in</div>
+                  <div style={{ fontSize: 18, fontWeight: 800 }}>{passData.daysRemaining}d</div>
+                </div>
+              </div>
+              <button onClick={cancelPass} style={{
+                marginTop: 12, background: 'rgba(255,255,255,0.15)', color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
+                padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              }}>Cancel Auto-Renew</button>
+            </div>
+          ) : passData?.plans ? (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', marginBottom: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>✦ MOVZZY Pass</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Ride more, pay less every month</div>
+              </div>
+              {passData.plans.map(plan => (
+                <div key={plan.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid #f9fafb', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0d1d35' }}>{plan.name}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{plan.description}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', marginRight: 8 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#0d1d35' }}>₹{plan.priceRupees}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>/month</div>
+                  </div>
+                  <button onClick={() => activatePass(plan.id)} disabled={passActivating} style={{
+                    background: '#1e63c9', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', opacity: passActivating ? 0.5 : 1, whiteSpace: 'nowrap',
+                  }}>Get</button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {/* Balance card */}
           <div style={{
             background: 'linear-gradient(135deg, #1e63c9, #2d5da7)',
@@ -1334,10 +1416,15 @@ function App() {
                     )}
                     {item.why && <p style={{ fontSize: 11, color: 'var(--ink-500)', marginTop: 6, lineHeight: 1.4, fontStyle: 'italic' }}>{item.why}</p>}
                     {item.score != null && (
-                      <div style={{ marginTop: 6 }}>
+                      <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                         <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--brand)', color: '#fff', borderRadius: 99, padding: '2px 7px', letterSpacing: '0.04em' }}>
                           MOVZZY {item.score}/100
                         </span>
+                        {item.passApplied && (
+                          <span style={{ fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', borderRadius: 99, padding: '2px 8px', border: '1px solid #fde68a' }}>
+                            ✦ Pass {item.passPlan} −₹{item.passDiscountRupees}
+                          </span>
+                        )}
                       </div>
                     )}
                     {item.breakdown?.length > 0 && (

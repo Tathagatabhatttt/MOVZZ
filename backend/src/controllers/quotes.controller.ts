@@ -6,6 +6,7 @@ import { findTopProviders } from '../services/provider-scoring.service';
 import redis from '../config/redis';
 import { getRapidoFareEstimate } from '../services/rapido.service';
 import { getUserPreferences } from '../services/ai/user-personalization.service';
+import { applyPassDiscount } from '../services/subscription.service';
 
 export async function getQuotesHandler(req: Request, res: Response): Promise<void> {
     try {
@@ -177,7 +178,26 @@ export async function getQuotesHandler(req: Request, res: Response): Promise<voi
             }
         }
 
-        // 7. Structure Response
+        // 7. Apply MOVZZY Pass discount (if active)
+        const userId = (req as any).user?.userId;
+        if (userId && quotes.length > 0) {
+            const firstSurge = quotes.some(q => q.surge);
+            const passResult = await applyPassDiscount(userId, quotes[0].farePaise, firstSurge);
+            if (passResult.plan) {
+                for (const q of quotes) {
+                    const { discountPaise, surgeBlocked } = await applyPassDiscount(userId, q.farePaise, q.surge);
+                    q.passDiscount = discountPaise;
+                    q.passDiscountRupees = Math.round(discountPaise / 100);
+                    q.passApplied = true;
+                    q.passPlan = passResult.plan;
+                    q.farePaise = Math.max(0, q.farePaise - discountPaise);
+                    q.price = Math.round(q.farePaise / 100);
+                    if (surgeBlocked) { q.surge = false; }
+                }
+            }
+        }
+
+        // 8. Structure Response
         const responseData = {
             quoteId,
             quotes,
